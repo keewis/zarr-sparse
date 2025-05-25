@@ -8,6 +8,8 @@ from zarr.core.common import JSON
 from zarr.registry import register_codec
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from zarr.core.array_spec import ArraySpec
 
 
@@ -20,9 +22,21 @@ class SparseArrayCodec(ArrayBytesCodec):
     ) -> Buffer | None:
         raise NotImplementedError
 
+    async def decode(
+        self,
+        chunks_and_specs: Iterable[tuple[Buffer | None, ArraySpec]],
+    ) -> Iterable[NDBuffer | None]:
+        raise NotImplementedError
+
     async def _encode_single(
         self, chunk_array: NDBuffer, chunk_spec: ArraySpec
     ) -> Buffer | None:
+        raise NotImplementedError
+
+    async def encode(
+        self,
+        chunks_and_specs: Iterable[tuple[NDBuffer | None, ArraySpec]],
+    ) -> Iterable[Buffer | None]:
         raise NotImplementedError
 
 
