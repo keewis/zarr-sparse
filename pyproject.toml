@@ -13,6 +13,19 @@ license = "MIT"
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+[project.optional-dependencies]
+pydata-sparse = ["sparse>=0.17.0"]
+scipy-sparse = ["scipy>=1.15.3"]
+torch-sparse = ["torch>=2.7.0"]
+
+[dependency-groups]
+dev = [
+  "black>=25.1.0",
+  "ipython>=9.2.0",
+  "pytest>=8.3.5",
+  "pytest-xdist>=3.6.1",
+]
+
 [tool.hatch]
 version.source = "vcs"
 
