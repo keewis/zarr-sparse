@@ -5,5 +5,8 @@ __pycache__/
 # linter / formatter caches
 .prettier_cache/
 
+# lockfiles
+uv.lock
+
 # version cache
 zarr_sparse/_version.py
