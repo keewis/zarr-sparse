@@ -1,0 +1,9 @@
+# python cache files
+*.py[cod]
+__pycache__/
+
+# linter / formatter caches
+.prettier_cache/
+
+# version cache
+zarr_sparse/_version.py
