@@ -4,6 +4,7 @@ description = "Codec-based encoding for sparse arrays"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "sparse",
   "zarr>=3.0.8",
 ]
 dynamic = ["version"]
@@ -70,3 +71,7 @@ fixable = ["I", "TID252"]
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
+
+[tool.uv.sources]
+zarr = { path = "../zarr-python", editable = true }
+sparse = { path = "../../sparse", editable = true }
