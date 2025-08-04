@@ -25,7 +25,6 @@ class ChunkGrid:
     """Chunk grid that records slice assignment"""
 
     def __init__(self, *, shape, dtype, order, fill_value):
-        print("setting shape to:", shape)
         self._shape = shape
         self._dtype = dtype
         self._order = order  # unused
