@@ -66,8 +66,8 @@ class ChunkGrid:
 
 @register_ndbuffer
 class SparseNDBuffer(NDBuffer):
-    def __init__(self, sparse_array) -> None:
-        super().__init__(sparse_array)
+    def __init__(self, chunk_grid) -> None:
+        self._data = chunk_grid
 
     @classmethod
     def create(
@@ -78,19 +78,27 @@ class SparseNDBuffer(NDBuffer):
         order: Literal["C", "F"] = "C",
         fill_value: Any | None = None,
     ) -> Self:
-        # np.zeros is much faster than np.full, and therefore using it when possible is better.
-        if fill_value is None or (isinstance(fill_value, int) and fill_value == 0):
-            return cls(sparse.zeros(shape=tuple(shape), dtype=dtype, order=order))
-        else:
-            return cls(
-                sparse.full(
-                    shape=tuple(shape), fill_value=fill_value, dtype=dtype, order=order
-                )
+        return cls(
+            ChunkGrid(
+                shape=tuple(shape), dtype=dtype, order=order, fill_value=fill_value
             )
+        )
 
     @classmethod
     def from_numpy_array(cls, array_like: npt.ArrayLike) -> Self:
         return cls.from_ndarray_like(array_like)
+
+    @classmethod
+    def from_ndarray_like(cls, ndarray_like) -> Self:
+        buffer = cls.create(
+            shape=ndarray_like.shape,
+            dtype=ndarray_like.dtype,
+            order="C",
+            fill_value=ndarray_like.fill_value,
+        )
+        buffer[(slice(None),) * ndarray_like.ndim] = ndarray_like
+
+        return buffer
 
     def as_numpy_array(self) -> npt.NDArray[Any]:
         """Returns the buffer as a NumPy array (host memory).
@@ -104,6 +112,9 @@ class SparseNDBuffer(NDBuffer):
             NumPy array of this buffer (might be a data copy)
         """
         raise NotImplementedError("can't convert to `numpy`")
+
+    def as_ndarray_like(self):
+        return self._data.get_value()
 
     def __getitem__(self, key: Any) -> Self:
         return self.__class__(self._data.__getitem__(key))
