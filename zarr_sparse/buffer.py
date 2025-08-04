@@ -27,7 +27,7 @@ class ChunkGrid:
     def __init__(self, *, shape, dtype, order, fill_value):
         self._shape = shape
         self._dtype = dtype
-        self._order = order  # unused
+        self._order = order  # unused, physical arrays are always 1-d for sparse
         self._fill_value = fill_value
         self._data = {}
 
