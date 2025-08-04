@@ -122,6 +122,14 @@ class SparseNDBuffer(NDBuffer):
     def __setitem__(self, key: Any, value: Any) -> None:
         if isinstance(value, NDBuffer):
             value = value._data
+
+        slice_sizes = tuple(
+            slice_size(slice_, size) for slice_, size in zip(key, self._data.shape)
+        )
+        if value.ndim == 0:
+            # fill value
+            value = sparse.full(slice_sizes, fill_value=value, dtype=value.dtype)
+
         self._data.__setitem__(key, value)
 
     def all_equal(self, other: Any, equal_nan: bool = True) -> bool:
