@@ -13,6 +13,57 @@ if TYPE_CHECKING:
     from typing import Self
 
 
+def slice_size(slice_, size):
+    return len(range(*slice_.indices(size)))
+
+
+def normalize_slice(slice_, size):
+    return slice(*slice_.indices(size))
+
+
+class ChunkGrid:
+    """Chunk grid that records slice assignment"""
+
+    def __init__(self, *, shape, dtype, order, fill_value):
+        print("setting shape to:", shape)
+        self._shape = shape
+        self._dtype = dtype
+        self._order = order  # unused
+        self._fill_value = fill_value
+        self._data = {}
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @property
+    def order(self):
+        return self._order
+
+    @property
+    def fill_value(self):
+        return self._fill_value
+
+    def __getitem__(self, key):
+        normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
+        return self._data[normalized_key]
+
+    def __setitem__(self, key, value):
+        normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
+        self._data[normalized_key] = value
+
+    def get_value(self):
+        chunk_sizes = [
+            tuple(slice_size(k, s) for k, s in zip(key, self._shape))
+            for key in self._data.keys()
+        ]
+        return chunk_sizes
+
+
 @register_ndbuffer
 class SparseNDBuffer(NDBuffer):
     def __init__(self, sparse_array) -> None:
