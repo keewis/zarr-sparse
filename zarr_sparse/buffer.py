@@ -58,7 +58,7 @@ def _decompose_int_by_chunks(indexer, offsets, chunksizes):
 
 
 def _decompose_array_by_chunks(indexer, offsets, chunksizes):
-    pass
+    raise NotImplementedError
 
 
 def decompose_by_chunks(indexer, chunks):
