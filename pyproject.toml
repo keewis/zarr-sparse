@@ -54,6 +54,7 @@ ignore = [
   "E402",
   "E501",
   "E731",
+  "UP038",
 ]
 select = [
   "F",   # Pyflakes
