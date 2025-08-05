@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bisect
+import math
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -75,12 +76,19 @@ def decompose_by_chunks(indexer, chunks):
 class ChunkGrid:
     """Chunk grid that records slice assignment"""
 
-    def __init__(self, *, shape, dtype, order, fill_value):
+    def __init__(self, *, shape, dtype, order, fill_value, chunks=None):
         self._shape = shape
         self._dtype = dtype
         self._order = order  # unused, physical arrays are always 1-d for sparse
         self._fill_value = fill_value
-        self._data = {}
+
+        if chunks is None:
+            chunks = shape
+        self._chunks = chunks
+
+        grid_shape = tuple(math.ceil(s / c) for s, c in zip(shape, chunks))
+        self._data = np.full(grid_shape, dtype=object, fill_value=None)
+        self._slices = np.full(grid_shape, dtype=object, fill_value=None)
 
     @property
     def shape(self):
@@ -97,6 +105,10 @@ class ChunkGrid:
     @property
     def fill_value(self):
         return self._fill_value
+
+    @property
+    def chunks(self):
+        return self._chunks
 
     def __getitem__(self, key):
         normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
