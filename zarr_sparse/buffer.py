@@ -25,6 +25,9 @@ def normalize_slice(slice_, size):
 
 def _decompose_slice_by_chunks(slice_, offsets, chunksizes):
     def _decompose_slice(slice_, offset, size):
+        if slice_ == slice(None):
+            return normalize_slice(slice_, size)
+
         if (slice_.start < offset and slice_.stop <= offset) or (
             slice_.start >= offset + size
         ):
@@ -43,7 +46,9 @@ def _decompose_slice_by_chunks(slice_, offsets, chunksizes):
     }
 
     return {
-        index: slice_ for index, slice_ in decomposed.items() if slice_size(slice_) > 0
+        index: slice_
+        for index, slice_ in decomposed.items()
+        if slice_size(slice_, chunksizes[index]) > 0
     }
 
 
