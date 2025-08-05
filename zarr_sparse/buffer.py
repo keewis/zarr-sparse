@@ -48,13 +48,13 @@ def _decompose_slice_by_chunks(slice_, offsets, chunksizes):
 
 
 def _decompose_int_by_chunks(indexer, offsets, chunksizes):
-    index = bisect.bisect_right(offsets, indexer)
-    new_indexer = indexer - offsets[index]
-
-    if index == offsets.size - 1 and new_indexer >= chunksizes[index]:
+    if indexer >= offsets[-1] + chunksizes[-1]:
         return {}
-    else:
-        return {index: new_indexer}
+
+    index = bisect.bisect_right(offsets, indexer) - 1
+    new_indexer = indexer - int(offsets[index])
+
+    return {index: new_indexer}
 
 
 def _decompose_array_by_chunks(indexer, offsets, chunksizes):
@@ -63,7 +63,7 @@ def _decompose_array_by_chunks(indexer, offsets, chunksizes):
 
 def decompose_by_chunks(indexer, chunks):
     chunksizes = np.array(chunks, dtype="uint64")
-    offsets = np.cumsum(chunksizes)
+    offsets = np.cumulative_sum(chunksizes, include_initial=True)[:-1]
 
     if isinstance(indexer, slice):
         return _decompose_slice_by_chunks(indexer, offsets, chunksizes)
