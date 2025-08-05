@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
@@ -19,6 +20,56 @@ def slice_size(slice_, size):
 
 def normalize_slice(slice_, size):
     return slice(*slice_.indices(size))
+
+
+def _decompose_slice_by_chunks(slice_, offsets, chunksizes):
+    def _decompose_slice(slice_, offset, size):
+        if (slice_.start < offset and slice_.stop <= offset) or (
+            slice_.start >= offset + size
+        ):
+            # outside chunk
+            return slice(0)
+
+        start = offset if slice_.start < offset else slice_.start
+        stop = offset + size if slice_.stop >= offset + size else slice_.stop
+        step = slice_.step
+
+        return slice(start, stop, step)
+
+    decomposed = {
+        index: _decompose_slice(slice_, offset, size)
+        for index, (offset, size) in enumerate(zip(offsets, chunksizes))
+    }
+
+    return {
+        index: slice_ for index, slice_ in decomposed.items() if slice_size(slice_) > 0
+    }
+
+
+def _decompose_int_by_chunks(indexer, offsets, chunksizes):
+    index = bisect.bisect_right(offsets, indexer)
+    new_indexer = indexer - offsets[index]
+
+    if index == offsets.size - 1 and new_indexer >= chunksizes[index]:
+        return {}
+    else:
+        return {index: new_indexer}
+
+
+def _decompose_array_by_chunks(indexer, offsets, chunksizes):
+    pass
+
+
+def decompose_by_chunks(indexer, chunks):
+    chunksizes = np.array(chunks, dtype="uint64")
+    offsets = np.cumsum(chunksizes)
+
+    if isinstance(indexer, slice):
+        return _decompose_slice_by_chunks(indexer, offsets, chunksizes)
+    elif isinstance(indexer, (int, np.integer)):
+        return _decompose_int_by_chunks(indexer, offsets, chunksizes)
+    else:
+        return _decompose_array_by_chunks(indexer, offsets, chunksizes)
 
 
 class ChunkGrid:
