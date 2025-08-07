@@ -8,7 +8,7 @@ from zarr.buffer.cpu import numpy_buffer_prototype
 from zarr.codecs import BytesCodec, ZstdCodec
 from zarr.codecs.sharding import MAX_UINT_64
 from zarr.core.array_spec import ArrayConfig, ArraySpec
-from zarr.core.buffer import Buffer, NDBuffer, default_buffer_prototype
+from zarr.core.buffer import Buffer, NDBuffer
 from zarr.core.common import JSON
 from zarr.core.dtype.npy.int import UInt64
 from zarr.registry import get_pipeline_class, register_codec
@@ -16,7 +16,9 @@ from zarr.registry import get_pipeline_class, register_codec
 from zarr_sparse.sparse import extract_arrays
 
 if TYPE_CHECKING:
-    from zarr.core.array_spec import ArraySpec
+    from typing import Any
+
+    from zarr.abc.codec import Codec
 
 
 async def encode_array(array, chunk_spec, codecs):
@@ -33,16 +35,28 @@ async def encode_array(array, chunk_spec, codecs):
     return metadata, array_bytes
 
 
-async def encode_table(metadata, codecs):
-    def create_chunk_spec(array):
-        return ArraySpec(
-            shape=sizes.shape,
-            dtype=UInt64(endianness="little"),
-            fill_value=MAX_UINT_64,
-            config=ArrayConfig(order="C", write_empty_chunks=False),
-            prototype=default_buffer_prototype(),
-        )
+def create_table_chunk_spec(*, shape=None, nbytes=None):
+    dtype = UInt64(endianness="little")
 
+    if (shape is None and nbytes is None) or (shape is not None and nbytes is not None):
+        raise ValueError("need to pass either shape or nbytes")
+    elif shape is None:
+        size = nbytes // dtype.item_size
+        if size * dtype.item_size != nbytes:
+            raise ValueError("mismatching dtype: does not map onto number of bytes")
+
+        shape = (size,)
+
+    return ArraySpec(
+        shape=shape,
+        dtype=dtype,
+        fill_value=MAX_UINT_64,
+        config=ArrayConfig(order="C", write_empty_chunks=False),
+        prototype=numpy_buffer_prototype(),
+    )
+
+
+async def encode_table(metadata, codecs):
     prototype = numpy_buffer_prototype()
     pipeline = get_pipeline_class().from_codecs(codecs)
 
@@ -53,7 +67,7 @@ async def encode_table(metadata, codecs):
                 [
                     (
                         prototype.nd_buffer.from_numpy_array(sizes),
-                        create_chunk_spec(sizes),
+                        create_table_chunk_spec(shape=sizes.shape),
                     )
                 ]
             )
@@ -67,7 +81,7 @@ async def encode_table(metadata, codecs):
                 [
                     (
                         prototype.nd_buffer.from_numpy_array(table_length),
-                        create_chunk_spec(table_length),
+                        create_table_chunk_spec(shape=table_length.shape),
                     )
                 ]
             )
@@ -76,6 +90,49 @@ async def encode_table(metadata, codecs):
 
     full_table = length_bytes + table_bytes
     return full_table
+
+
+async def decode_table(
+    chunk_data: Buffer, chunk_spec: ArraySpec, codecs: list[Codec]
+) -> list[dict[str, Any]]:
+    pipeline = get_pipeline_class().from_codecs(codecs)
+
+    table_size = (
+        next(
+            iter(
+                await pipeline.decode(
+                    [(chunk_data[:8], create_table_chunk_spec(shape=(1,)))]
+                )
+            )
+        )
+        .as_numpy_array()
+        .item()
+    )
+
+    sizes = next(
+        iter(
+            await pipeline.decode(
+                [
+                    (
+                        chunk_data[8 : 8 + table_size],
+                        create_table_chunk_spec(nbytes=table_size),
+                    )
+                ]
+            )
+        )
+    ).as_numpy_array()
+
+    metadata = [
+        {
+            "size": int(size),
+            "dtype": (
+                chunk_spec.dtype.to_native_dtype() if index == 0 else np.dtype("<i8")
+            ),
+            "order": "C",
+        }
+        for index, size in enumerate(sizes)
+    ]
+    return metadata
 
 
 class SparseArrayCodec(ArrayBytesCodec):
@@ -87,8 +144,10 @@ class SparseArrayCodec(ArrayBytesCodec):
         return {"name": "sparse"}
 
     async def _decode_single(
-        self, chunk_data: NDBuffer, chunk_spec: ArraySpec
+        self, chunk_data: Buffer, chunk_spec: ArraySpec
     ) -> Buffer | None:
+        table = await decode_table(chunk_data, chunk_spec, self.table_codecs)
+        print(table)
         raise NotImplementedError(f"chunk data: {chunk_data}, chunk spec: {chunk_spec}")
 
     # async def decode(
