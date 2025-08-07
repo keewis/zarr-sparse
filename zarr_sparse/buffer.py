@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import math
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -48,16 +49,86 @@ def expand_chunks(chunks, shape):
     return tuple(_expand(chunkspec, size) for chunkspec, size in zip(chunks, shape))
 
 
-def slice_to_chunk_index(slice_, offsets):
-    if slice_ == slice(None):
-        return 0
+def slice_to_chunk_indices(slice_, offsets, chunks):
+    condition = (slice_.start <= offsets) & (slice_.stop >= offsets + chunks)
+    selected = np.flatnonzero(condition)
 
-    chunk_index = np.flatnonzero(offsets == slice_.start)
-
-    if chunk_index.size == 0:
+    if selected.size == 0:
         raise ValueError(f"Selected chunk out of bounds: {slice_}")
 
-    return chunk_index[0]
+    return tuple(int(_) for _ in selected)
+
+
+def decompose_slice(slice_, offsets, chunks, local=False):
+    print("decompose:", slice_, offsets, chunks)
+    chunk_indices = slice_to_chunk_indices(slice_, offsets, chunks)
+    total_size = sum(chunks)
+    print(chunk_indices)
+
+    decomposed = {
+        index: (
+            slice_slice(
+                slice_,
+                slice(int(offsets[index]), int(offsets[index]) + chunks[index], 1),
+                total_size,
+            )
+            if not local
+            else slice(
+                slice_.start - int(offsets[index]),
+                slice_.stop - int(offsets[index]),
+                slice_.step,
+            )
+        )
+        for index in chunk_indices
+    }
+    return list(decomposed.items())
+
+
+def decompose_slices(slices, all_offsets, all_chunks, local=False):
+    decomposed = (
+        decompose_slice(slice_, offsets, chunks, local=local)
+        for slice_, offsets, chunks in zip(slices, all_offsets, all_chunks)
+    )
+    combined = [tuple(zip(*elements)) for elements in itertools.product(*decomposed)]
+    return combined
+
+
+def slice_slice(old_slice: slice, applied_slice: slice, size: int) -> slice:
+    """Given a slice and the size of the dimension to which it will be applied,
+    index it with another slice to return a new slice equivalent to applying
+    the slices sequentially
+    """
+    old_slice = normalize_slice(old_slice, size)
+
+    size_after_old_slice = len(range(old_slice.start, old_slice.stop, old_slice.step))
+    if size_after_old_slice == 0:
+        # nothing left after applying first slice
+        return slice(0)
+
+    applied_slice = normalize_slice(applied_slice, size_after_old_slice)
+
+    start = old_slice.start + applied_slice.start * old_slice.step
+    if start < 0:
+        # nothing left after applying second slice
+        # (can only happen for old_slice.step < 0, e.g. [10::-1], [20:])
+        return slice(0)
+
+    stop = old_slice.start + applied_slice.stop * old_slice.step
+    if stop < 0:
+        stop = None
+
+    step = old_slice.step * applied_slice.step
+
+    return slice(start, stop, step)
+
+
+def slice_to_chunk_slice(slice_, offset, size):
+    print("moving:", slice_, offset, size)
+    start = slice_.start - int(offset) if slice_.start >= offset else 0
+    stop = slice_.stop - int(offset) if slice_.stop >= offset else 0
+
+    s = slice(start, stop, slice_.step)
+    return normalize_slice(s, size)
 
 
 def sparse_equal(a, b, equal_nan: bool) -> bool:
@@ -130,42 +201,61 @@ class ChunkGrid:
         return self._chunks
 
     def __getitem__(self, key):
-        chunk_indices = tuple(
-            slice_to_chunk_index(k, o) for k, o in zip(key, self._offsets)
+        if any(not isinstance(k, slice) for k in key):
+            return ValueError("indexing is only supported for slices")
+
+        normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
+        decomposed_slices = decompose_slices(
+            normalized_key, self._offsets, self.chunks, local=True
         )
-        data = self._data[chunk_indices]
-        if data is None:
-            chunk_shape = tuple(
-                chunksizes[index]
-                for index, chunksizes in zip(chunk_indices, self.chunks)
+        chunk_indices_ = list(c for c, _ in decomposed_slices)
+        by_dim = [sorted(set(c)) for c in zip(*chunk_indices_)]
+        new_grid_shape = tuple(len(dim) for dim in by_dim)
+        new_grid = np.full(new_grid_shape, fill_value=None, dtype=object)
+
+        for chunk_indices, value_slices in decomposed_slices:
+            new_indices = tuple(
+                dim.index(indexer) for indexer, dim in zip(chunk_indices, by_dim)
             )
-            data = sparse.full(
-                chunk_shape, fill_value=self.fill_value, dtype=self.dtype
-            )
+            selected = self._data[chunk_indices]
+            new_grid[new_indices] = selected[value_slices]
+
+        new_shape = tuple(
+            sum(chunksizes)
+            for chunksizes in zip(*(chunk.shape for chunk in new_grid.ravel()))
+        )
 
         result = type(self)(
-            shape=data.shape,
-            dtype=data.dtype,
+            shape=new_shape,
+            dtype=self.dtype,
             order=self.order,
-            fill_value=data.fill_value,
+            fill_value=self.fill_value,
             chunks=None,
         )
-        result._data[0, 0] = data
+        result._data = new_grid
         return result
 
     def __setitem__(self, key, value):
-        if any(
-            s == slice(None) and size != total_size
-            for s, size, total_size in zip(key, value.shape, self.shape)
-        ):
-            raise ValueError("size mismatch")
+        if any(not isinstance(k, slice) for k in key):
+            return ValueError("indexing is only supported for slices")
 
-        chunk_indices = tuple(
-            slice_to_chunk_index(k, o) for k, o in zip(key, self._offsets)
+        selection_sizes = tuple(slice_size(k, size) for k, size in zip(key, self.shape))
+        if selection_sizes != value.shape:
+            raise ValueError("inconsistent assignment")
+
+        normalized_key = tuple(
+            normalize_slice(k, size) for k, size in zip(key, self.shape)
         )
+
         if isinstance(value, ChunkGrid):
             value = value._data.item()
-        self._data[chunk_indices] = value
+
+        # decompose into selected chunks and slices into the value
+        # iterate over selected chunks and assign the value subset
+        decomposed_slices = decompose_slices(normalized_key, self._offsets, self.chunks)
+
+        for chunk_indices, value_slice in decomposed_slices:
+            self._data[chunk_indices] = value[value_slice]
 
     def all_equal(self, other: Any, equal_nan: bool) -> bool:
         if other.ndim != 0 and (
