@@ -34,20 +34,48 @@ async def encode_array(array, chunk_spec, codecs):
 
 
 async def encode_table(metadata, codecs):
-    sizes = np.array([m["size"] for m in metadata], dtype="uint64")
-    chunk_spec = ArraySpec(
-        shape=sizes.shape,
-        dtype=UInt64(endianness="little"),
-        fill_value=MAX_UINT_64,
-        config=ArrayConfig(order="C", write_empty_chunks=False),
-        prototype=default_buffer_prototype(),
-    )
-    ndbuffer = numpy_buffer_prototype().nd_buffer.from_numpy_array(sizes)
+    def create_chunk_spec(array):
+        return ArraySpec(
+            shape=sizes.shape,
+            dtype=UInt64(endianness="little"),
+            fill_value=MAX_UINT_64,
+            config=ArrayConfig(order="C", write_empty_chunks=False),
+            prototype=default_buffer_prototype(),
+        )
 
+    prototype = numpy_buffer_prototype()
     pipeline = get_pipeline_class().from_codecs(codecs)
-    table_bytes = next(iter(await pipeline.encode([(ndbuffer, chunk_spec)])))
 
-    return table_bytes
+    sizes = np.array([m["size"] for m in metadata], dtype="uint64")
+    table_bytes = next(
+        iter(
+            await pipeline.encode(
+                [
+                    (
+                        prototype.nd_buffer.from_numpy_array(sizes),
+                        create_chunk_spec(sizes),
+                    )
+                ]
+            )
+        )
+    )
+
+    table_length = np.array([table_bytes._data.size], dtype="uint64")
+    length_bytes = next(
+        iter(
+            await pipeline.encode(
+                [
+                    (
+                        prototype.nd_buffer.from_numpy_array(table_length),
+                        create_chunk_spec(table_length),
+                    )
+                ]
+            )
+        )
+    )
+
+    full_table = length_bytes + table_bytes
+    return full_table
 
 
 class SparseArrayCodec(ArrayBytesCodec):
