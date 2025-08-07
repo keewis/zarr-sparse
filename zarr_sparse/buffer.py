@@ -64,15 +64,18 @@ def sparse_equal(a, b, equal_nan: bool) -> bool:
     equal_nan = equal_nan if a.dtype.kind not in ("U", "S", "T", "O", "V") else False
 
     if b.ndim == 0:
-        return np.array_equal(
+        if not np.array_equal(
             a.fill_value, getattr(b, "fill_value", b), equal_nan=equal_nan
-        ) and (
-            a.nnz == 0
-            or np.equal(
-                a.data,
-                np.broadcast_to(b.data, a.data.shape),
-                equal_nan,
-            )
+        ):
+            return False
+
+        if a.nnz == 0:
+            return True
+
+        return np.array_equal(
+            a.data,
+            np.broadcast_to(b.data, a.data.shape),
+            equal_nan=equal_nan,
         )
 
     # use array_equal to obtain equal_nan=True functionality
