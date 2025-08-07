@@ -96,12 +96,13 @@ async def decode_table(
     chunk_data: Buffer, chunk_spec: ArraySpec, codecs: list[Codec]
 ) -> list[dict[str, Any]]:
     pipeline = get_pipeline_class().from_codecs(codecs)
+    nbytes_size = 8
 
-    table_size = (
+    nbytes_table = (
         next(
             iter(
                 await pipeline.decode(
-                    [(chunk_data[:8], create_table_chunk_spec(shape=(1,)))]
+                    [(chunk_data[:nbytes_size], create_table_chunk_spec(shape=(1,)))]
                 )
             )
         )
@@ -114,8 +115,8 @@ async def decode_table(
             await pipeline.decode(
                 [
                     (
-                        chunk_data[8 : 8 + table_size],
-                        create_table_chunk_spec(nbytes=table_size),
+                        chunk_data[nbytes_size : nbytes_size + nbytes_table],
+                        create_table_chunk_spec(nbytes=nbytes_table),
                     )
                 ]
             )
@@ -132,7 +133,7 @@ async def decode_table(
         }
         for index, size in enumerate(sizes)
     ]
-    return metadata
+    return metadata, chunk_data[nbytes_size + nbytes_table :]
 
 
 class SparseArrayCodec(ArrayBytesCodec):
