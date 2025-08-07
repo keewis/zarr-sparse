@@ -187,6 +187,14 @@ class ChunkGrid:
 
         return all(sparse_equal(a, b, equal_nan=equal_nan) for a, b in to_compare)
 
+    def get_chunk(self, indexer=None):
+        if indexer is None:
+            if self._data.size != 1:
+                raise ValueError("need to select a chunk for multiple chunk arrays")
+            return self._data.item()
+
+        return self._data[indexer]
+
     def get_value(self):
         return combine_nd(self._data)
 
