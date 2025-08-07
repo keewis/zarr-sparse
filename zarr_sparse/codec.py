@@ -10,7 +10,7 @@ from zarr.codecs.sharding import MAX_UINT_64
 from zarr.core.array_spec import ArrayConfig, ArraySpec
 from zarr.core.buffer import Buffer, NDBuffer
 from zarr.core.common import JSON
-from zarr.core.dtype.npy.int import UInt64
+from zarr.core.dtype.npy.int import Int64, UInt64
 from zarr.registry import get_pipeline_class, register_codec
 
 from zarr_sparse.sparse import extract_arrays
@@ -126,9 +126,7 @@ async def decode_table(
     metadata = [
         {
             "size": int(size),
-            "dtype": (
-                chunk_spec.dtype.to_native_dtype() if index == 0 else np.dtype("<i8")
-            ),
+            "dtype": chunk_spec.dtype if index == 0 else Int64(endianness="little"),
             "order": "C",
         }
         for index, size in enumerate(sizes)
