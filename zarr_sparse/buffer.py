@@ -199,7 +199,7 @@ class ChunkGrid:
             fill_value=data.fill_value,
             chunks=None,
         )
-        result._data = data
+        result._data[0, 0] = data
         return result
 
     def __setitem__(self, key, value):
@@ -212,6 +212,8 @@ class ChunkGrid:
         chunk_indices = tuple(
             slice_to_chunk_index(k, o) for k, o in zip(key, self._offsets)
         )
+        if isinstance(value, ChunkGrid):
+            value = value._data.item()
         self._data[chunk_indices] = value
 
     def get_value(self):
@@ -233,7 +235,7 @@ class ChunkGrid:
 
         if other.ndim == 0:
             to_compare = (
-                (c, other._data if isinstance(other, ChunkGrid) else other)
+                (c, other._data.item() if isinstance(other, ChunkGrid) else other)
                 for c in self._data.ravel().tolist()
             )
         else:
