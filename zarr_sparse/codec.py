@@ -15,6 +15,9 @@ from zarr.registry import get_pipeline_class, register_codec
 
 from zarr_sparse.sparse import extract_arrays
 
+MAX_INT_64 = np.iinfo(np.int64).max
+
+
 if TYPE_CHECKING:
     from typing import Any
 
@@ -28,6 +31,7 @@ async def encode_array(array, chunk_spec, codecs):
     array_bytes = next(iter(await pipeline.encode([(ndbuffer, chunk_spec)])))
     metadata = {
         "size": array.size,
+        "nbytes": len(array_bytes),
         "dtype": array.dtype,
         "order": "C",
     }
@@ -60,19 +64,21 @@ async def encode_table(metadata, codecs):
     prototype = numpy_buffer_prototype()
     pipeline = get_pipeline_class().from_codecs(codecs)
 
+    byte_lengths = np.array([m["nbytes"] for m in metadata], dtype="uint64")
     sizes = np.array([m["size"] for m in metadata], dtype="uint64")
-    table_bytes = next(
-        iter(
-            await pipeline.encode(
-                [
-                    (
-                        prototype.nd_buffer.from_numpy_array(sizes),
-                        create_table_chunk_spec(shape=sizes.shape),
-                    )
-                ]
-            )
-        )
+    size_bytes, byte_length_bytes = await pipeline.encode(
+        [
+            (
+                prototype.nd_buffer.from_numpy_array(sizes),
+                create_table_chunk_spec(shape=sizes.shape),
+            ),
+            (
+                prototype.nd_buffer.from_numpy_array(byte_lengths),
+                create_table_chunk_spec(shape=byte_lengths.shape),
+            ),
+        ]
     )
+    table_bytes = size_bytes + byte_length_bytes
 
     table_length = np.array([table_bytes._data.size], dtype="uint64")
     length_bytes = next(
@@ -109,27 +115,35 @@ async def decode_table(
         .as_numpy_array()
         .item()
     )
+    nbytes_column = nbytes_table // 2  # two columns
 
-    sizes = next(
-        iter(
-            await pipeline.decode(
-                [
-                    (
-                        chunk_data[nbytes_size : nbytes_size + nbytes_table],
-                        create_table_chunk_spec(nbytes=nbytes_table),
-                    )
-                ]
-            )
-        )
-    ).as_numpy_array()
+    sizes_offset = nbytes_size
+    byte_length_offset = nbytes_size + nbytes_column
+
+    sizes, byte_lengths = map(
+        lambda x: x.as_numpy_array(),
+        await pipeline.decode(
+            [
+                (
+                    chunk_data[sizes_offset : sizes_offset + nbytes_column],
+                    create_table_chunk_spec(nbytes=nbytes_column),
+                ),
+                (
+                    chunk_data[byte_length_offset : byte_length_offset + nbytes_column],
+                    create_table_chunk_spec(nbytes=nbytes_column),
+                ),
+            ]
+        ),
+    )
 
     metadata = [
         {
             "size": int(size),
+            "nbytes": int(nbytes),
             "dtype": chunk_spec.dtype if index == 0 else Int64(endianness="little"),
             "order": "C",
         }
-        for index, size in enumerate(sizes)
+        for index, (size, nbytes) in enumerate(zip(sizes, byte_lengths))
     ]
     return metadata, chunk_data[nbytes_size + nbytes_table :]
 
@@ -145,8 +159,33 @@ class SparseArrayCodec(ArrayBytesCodec):
     async def _decode_single(
         self, chunk_data: Buffer, chunk_spec: ArraySpec
     ) -> Buffer | None:
-        table = await decode_table(chunk_data, chunk_spec, self.table_codecs)
-        print(table)
+        table, chunk_bytes = await decode_table(
+            chunk_data, chunk_spec, self.table_codecs
+        )
+
+        offset = 0
+        to_decode = []
+        for index, metadata in enumerate(table):
+            dtype = metadata["dtype"]
+            fill_value = (chunk_spec.fill_value if index == 0 else MAX_INT_64,)
+            chunk_spec = ArraySpec(
+                shape=(metadata["size"],),
+                dtype=dtype,
+                fill_value=fill_value,
+                config=ArrayConfig(order=metadata["order"], write_empty_chunks=False),
+                prototype=numpy_buffer_prototype(),
+            )
+            nbytes = metadata["nbytes"]
+            to_decode.append((chunk_bytes[offset : offset + nbytes], chunk_spec))
+
+            offset += nbytes
+
+        pipeline = get_pipeline_class().from_codecs(self.array_codecs)
+        decoded = await pipeline.decode(to_decode)
+
+        arrays = [buffer.as_numpy_array() for buffer in decoded]
+        print(arrays)
+
         raise NotImplementedError(f"chunk data: {chunk_data}, chunk spec: {chunk_spec}")
 
     # async def decode(
