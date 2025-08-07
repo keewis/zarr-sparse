@@ -1,12 +1,7 @@
 import numpy as np
 import pytest
 
-from zarr_sparse.buffer import (
-    ChunkGrid,
-    decompose_by_chunks,
-    normalize_slice,
-    slice_size,
-)
+from zarr_sparse.buffer import ChunkGrid, normalize_slice, slice_size
 
 
 @pytest.mark.parametrize(
@@ -35,46 +30,6 @@ def test_normalize_slice(slice_, size, expected):
     actual = normalize_slice(slice_, size)
 
     assert actual == expected
-
-
-@pytest.mark.parametrize(
-    ["indexer", "chunks", "expected"],
-    (
-        (
-            slice(None),
-            (5, 5, 5, 3),
-            {
-                0: slice(0, 5, 1),
-                1: slice(0, 5, 1),
-                2: slice(0, 5, 1),
-                3: slice(0, 3, 1),
-            },
-        ),
-        (slice(1, 5, 2), (10, 10, 1), {0: slice(1, 5, 2)}),
-        (4, (3, 3), {1: 1}),
-        (
-            np.array([1, 2, 4, 6]),
-            (3, 3, 2),
-            {0: np.array([1, 2]), 1: np.array([1]), 2: np.array([0])},
-        ),
-    ),
-)
-def test_decompose_by_chunks(indexer, chunks, expected):
-    def compare(indexer1, indexer2):
-        if type(indexer1) is not type(indexer2):
-            return False
-
-        if isinstance(indexer1, (int, slice)):
-            return indexer1 == indexer2
-
-        return np.array_equal(indexer1, indexer2)
-
-    actual = decompose_by_chunks(indexer, chunks)
-
-    assert actual.keys() == expected.keys(), "selected chunks are different"
-    assert all(
-        compare(actual[k], expected[k]) for k in actual.keys()
-    ), "chunk indexers are different"
 
 
 class TestChunkGrid:

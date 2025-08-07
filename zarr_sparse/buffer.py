@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import bisect
 import math
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -21,61 +20,6 @@ def slice_size(slice_, size):
 
 def normalize_slice(slice_, size):
     return slice(*slice_.indices(size))
-
-
-def _decompose_slice_by_chunks(slice_, offsets, chunksizes):
-    def _decompose_slice(slice_, offset, size):
-        if slice_ == slice(None):
-            return normalize_slice(slice_, size)
-
-        if (slice_.start < offset and slice_.stop <= offset) or (
-            slice_.start >= offset + size
-        ):
-            # outside chunk
-            return slice(0)
-
-        start = offset if slice_.start < offset else slice_.start
-        stop = offset + size if slice_.stop >= offset + size else slice_.stop
-        step = slice_.step
-
-        return slice(start, stop, step)
-
-    decomposed = {
-        index: _decompose_slice(slice_, offset, size)
-        for index, (offset, size) in enumerate(zip(offsets, chunksizes))
-    }
-
-    return {
-        index: slice_
-        for index, slice_ in decomposed.items()
-        if slice_size(slice_, chunksizes[index]) > 0
-    }
-
-
-def _decompose_int_by_chunks(indexer, offsets, chunksizes):
-    if indexer >= offsets[-1] + chunksizes[-1]:
-        return {}
-
-    index = bisect.bisect_right(offsets, indexer) - 1
-    new_indexer = indexer - int(offsets[index])
-
-    return {index: new_indexer}
-
-
-def _decompose_array_by_chunks(indexer, offsets, chunksizes):
-    raise NotImplementedError
-
-
-def decompose_by_chunks(indexer, chunks):
-    chunksizes = np.array(chunks, dtype="uint64")
-    offsets = np.cumulative_sum(chunksizes, include_initial=True)[:-1]
-
-    if isinstance(indexer, slice):
-        return _decompose_slice_by_chunks(indexer, offsets, chunksizes)
-    elif isinstance(indexer, (int, np.integer)):
-        return _decompose_int_by_chunks(indexer, offsets, chunksizes)
-    else:
-        return _decompose_array_by_chunks(indexer, offsets, chunksizes)
 
 
 def expand_chunks(chunks, shape):
