@@ -22,6 +22,10 @@ def normalize_slice(slice_, size):
     return slice(*slice_.indices(size))
 
 
+def combine_nd(parts):
+    raise NotImplementedError
+
+
 def expand_chunks(chunks, shape):
     def _expand(chunkspec, size):
         if chunkspec == -1:
@@ -160,13 +164,6 @@ class ChunkGrid:
             value = value._data.item()
         self._data[chunk_indices] = value
 
-    def get_value(self):
-        chunk_sizes = [
-            tuple(slice_size(k, s) for k, s in zip(key, self._shape))
-            for key in self._data.keys()
-        ]
-        return chunk_sizes
-
     def all_equal(self, other: Any, equal_nan: bool) -> bool:
         if other.ndim != 0 and (
             self.shape != other.shape
@@ -186,6 +183,9 @@ class ChunkGrid:
             to_compare = zip(self._data.ravel().tolist(), other._data.ravel().tolist())
 
         return all(sparse_equal(a, b, equal_nan=equal_nan) for a, b in to_compare)
+
+    def get_value(self):
+        return combine_nd(self._data)
 
 
 @register_ndbuffer
