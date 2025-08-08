@@ -120,15 +120,6 @@ def slice_slice(old_slice: slice, applied_slice: slice, size: int) -> slice:
     return slice(start, stop, step)
 
 
-def slice_to_chunk_slice(slice_, offset, size):
-    print("moving:", slice_, offset, size)
-    start = slice_.start - int(offset) if slice_.start >= offset else 0
-    stop = slice_.stop - int(offset) if slice_.stop >= offset else 0
-
-    s = slice(start, stop, slice_.step)
-    return normalize_slice(s, size)
-
-
 def sparse_equal(a, b, equal_nan: bool) -> bool:
     equal_nan = equal_nan if a.dtype.kind not in ("U", "S", "T", "O", "V") else False
 
@@ -216,6 +207,7 @@ class ChunkGrid:
                 dim.index(indexer) for indexer, dim in zip(chunk_indices, by_dim)
             )
             selected = self._data[chunk_indices]
+
             new_grid[new_indices] = selected[value_slices]
 
         new_shape = tuple(
@@ -250,10 +242,20 @@ class ChunkGrid:
 
         # decompose into selected chunks and slices into the value
         # iterate over selected chunks and assign the value subset
-        decomposed_slices = decompose_slices(normalized_key, self._offsets, self.chunks)
+        decomposed_slices = decompose_slices(
+            normalized_key, self._offsets, self.chunks, local=False
+        )
 
         for chunk_indices, value_slice in decomposed_slices:
-            self._data[chunk_indices] = value[value_slice]
+            # TODO: fix the bug in `decompose_slice`
+            chunk_shape = tuple(
+                chunks[index] for index, chunks in zip(chunk_indices, self.chunks)
+            )
+            if value.shape != chunk_shape:
+                sliced = value[value_slice]
+            else:
+                sliced = value
+            self._data[chunk_indices] = sliced
 
     def all_equal(self, other: Any, equal_nan: bool) -> bool:
         if other.ndim != 0 and (
