@@ -60,10 +60,8 @@ def slice_to_chunk_indices(slice_, offsets, chunks):
 
 
 def decompose_slice(slice_, offsets, chunks, local=False):
-    print("decompose:", slice_, offsets, chunks)
     chunk_indices = slice_to_chunk_indices(slice_, offsets, chunks)
     total_size = sum(chunks)
-    print(chunk_indices)
 
     decomposed = {
         index: (
