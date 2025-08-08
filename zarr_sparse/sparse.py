@@ -2,6 +2,8 @@ from functools import singledispatch
 
 import numpy as np
 
+sparse_keys = ["sparse-kind", "compressed_axes"]
+
 
 @singledispatch
 def extract_arrays(x):
