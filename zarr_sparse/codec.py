@@ -10,7 +10,7 @@ from zarr.buffer.cpu import numpy_buffer_prototype
 from zarr.codecs import BytesCodec, ZstdCodec
 from zarr.core.array_spec import ArrayConfig, ArraySpec
 from zarr.core.buffer import Buffer, NDBuffer
-from zarr.core.common import JSON
+from zarr.core.common import JSON, parse_named_configuration
 from zarr.core.dtype import data_type_registry
 from zarr.core.dtype.npy.int import BaseInt, Int64, UInt64
 from zarr.core.dtype.npy.string import FixedLengthUTF32, VariableLengthUTF8
@@ -281,6 +281,15 @@ class SparseArrayCodec(ArrayBytesCodec):
     def __init__(self):
         self.array_codecs = (BytesCodec(), ZstdCodec())
         self.table_codecs = (BytesCodec(),)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, JSON]) -> Self:
+        _, configuration_parsed = parse_named_configuration(
+            data, "sparse", require_configuration=False
+        )
+        configuration_parsed = configuration_parsed or {}
+
+        return cls(**configuration_parsed)
 
     def to_dict(self) -> dict[str, JSON]:
         return {"name": "sparse"}
