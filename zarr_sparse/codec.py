@@ -341,13 +341,6 @@ class SparseArrayCodec(ArrayBytesCodec):
         constructed = assemble_array(sparse_metadata, arrays, library="pydata-sparse")
         return constructed
 
-    # async def decode(
-    #     self,
-    #     chunks_and_specs: Iterable[tuple[Buffer | None, ArraySpec]],
-    # ) -> Iterable[NDBuffer | None]:
-    #     print(list(chunks_and_specs))
-    #     raise NotImplementedError
-
     async def _encode_single(
         self, chunk_array: NDBuffer, chunk_spec: ArraySpec
     ) -> Buffer | None:
@@ -392,12 +385,6 @@ class SparseArrayCodec(ArrayBytesCodec):
         )
 
         return offset_buffer + table_buffer + array_buffer
-
-    # async def encode(
-    #     self,
-    #     chunks_and_specs: Iterable[tuple[NDBuffer | None, ArraySpec]],
-    # ) -> Iterable[Buffer | None]:
-    #     raise NotImplementedError
 
 
 register_codec("sparse", SparseArrayCodec)
