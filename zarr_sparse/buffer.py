@@ -228,6 +228,22 @@ class ChunkGrid:
     def chunks(self):
         return self._chunks
 
+    def __repr__(self):
+        shape = self.shape
+        fill_value = self.fill_value
+        chunks = self.chunks
+
+        grid = self._data
+
+        repr_ = f"<ChunkGrid({shape=}, {fill_value=}, {chunks=}>"
+
+        return "\n".join(
+            [
+                repr_,
+                repr(grid),
+            ]
+        )
+
     def __getitem__(self, key):
         if any(not isinstance(k, slice) for k in key):
             return ValueError("indexing is only supported for slices")
