@@ -3,7 +3,7 @@ import hypothesis.strategies as st
 import numpy as np
 import sparse
 
-from zarr_sparse.utils import expand_chunks
+from zarr_sparse.chunks import expand_chunks
 
 nnz = st.integers(min_value=1, max_value=30)
 
