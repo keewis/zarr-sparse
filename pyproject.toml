@@ -35,6 +35,21 @@ version.source = "vcs"
 [tool.hatch.build]
 hooks.vcs.version-file = "zarr_sparse/_version.py"
 
+[tool.hatch.envs.test]
+dependencies = [
+  "sparse",
+  "numpy",
+  "zarr-python",
+]
+features = ["test"]
+
+[tool.hatch.envs.test.matrix]
+python = ["3.12", "3.13"]
+
+[tool.hatch.envs.test.scripts]
+list-env = "pip list"
+tests = "pytest -n auto"
+
 [tool.ruff]
 target-version = "py311"
 builtins = ["ellipsis"]
