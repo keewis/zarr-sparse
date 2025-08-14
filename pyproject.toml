@@ -27,6 +27,7 @@ test = [
 [dependency-groups]
 dev = [
   "black>=25.1.0",
+  "hatch>=1.14.1",
   "hypothesis>=6.138.0",
   "ipdb>=0.13.13",
   "ipython>=9.2.0",
