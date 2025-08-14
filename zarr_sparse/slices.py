@@ -13,8 +13,13 @@ def normalize_slice(slice_: slice[int | None], size: int) -> slice[int]:
     return slice(*slice_.indices(size))
 
 
-def slice_to_chunk_indices(slice_, offsets, chunks):
-    condition = (slice_.start <= offsets) & (slice_.stop <= offsets + chunks)
+def slice_to_chunk_indices(slice_, bounds):
+    fully_contained = (slice_.start <= bounds[:-1]) & (slice_.stop >= bounds[1:])
+    partially_contained = (
+        (slice_.start >= bounds[:-1]) & (slice_.start < bounds[1:])
+    ) | ((slice_.stop > bounds[:-1]) & (slice_.stop <= bounds[1:]))
+    condition = fully_contained | partially_contained
+
     selected = np.flatnonzero(condition)
 
     if selected.size == 0:
