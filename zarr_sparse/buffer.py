@@ -109,18 +109,18 @@ class ChunkGrid:
 
         normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
         decomposed_slices = decompose_slices(normalized_key, self._bounds)
-        chunk_indices_ = list(c for c, _ in decomposed_slices)
+        chunk_indices_ = list(c for c, _, _ in decomposed_slices)
         by_dim = [sorted(set(c)) for c in zip(*chunk_indices_)]
         new_grid_shape = tuple(len(dim) for dim in by_dim)
         new_grid = np.full(new_grid_shape, fill_value=None, dtype=object)
 
-        for chunk_indices, value_slices in decomposed_slices:
+        for chunk_indices, local_indexer, _ in decomposed_slices:
             new_indices = tuple(
                 dim.index(indexer) for indexer, dim in zip(chunk_indices, by_dim)
             )
             selected = self._data[chunk_indices]
 
-            new_grid[new_indices] = selected[value_slices]
+            new_grid[new_indices] = selected[local_indexer]
 
         new_shape = tuple(
             sum(chunksizes)
@@ -156,13 +156,13 @@ class ChunkGrid:
         # iterate over selected chunks and assign the value subset
         decomposed_slices = decompose_slices(normalized_key, self._bounds)
 
-        for chunk_indices, value_slice in decomposed_slices:
+        for chunk_indices, _, global_indexer in decomposed_slices:
             # TODO: fix the bug in `decompose_slice`
             chunk_shape = tuple(
                 chunks[index] for index, chunks in zip(chunk_indices, self.chunks)
             )
             if value.shape != chunk_shape:
-                sliced = value[value_slice]
+                sliced = value[global_indexer]
             else:
                 sliced = value
             self._data[chunk_indices] = sliced
