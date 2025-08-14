@@ -4,6 +4,7 @@ description = "Codec-based encoding for sparse arrays"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+  "sparse",
   "zarr>=3.0.8",
 ]
 dynamic = ["version"]
@@ -17,10 +18,18 @@ build-backend = "hatchling.build"
 pydata-sparse = ["sparse>=0.17.0"]
 scipy-sparse = ["scipy>=1.15.3"]
 torch-sparse = ["torch>=2.7.0"]
+test = [
+  "pytest",
+  "pytest-xdist",
+  "hypothesis",
+]
 
 [dependency-groups]
 dev = [
   "black>=25.1.0",
+  "hatch>=1.14.1",
+  "hypothesis>=6.138.0",
+  "ipdb>=0.13.13",
   "ipython>=9.2.0",
   "pytest>=8.3.5",
   "pytest-xdist>=3.6.1",
@@ -31,6 +40,21 @@ version.source = "vcs"
 
 [tool.hatch.build]
 hooks.vcs.version-file = "zarr_sparse/_version.py"
+
+[tool.hatch.envs.test]
+dependencies = [
+  "sparse",
+  "numpy",
+  "zarr",
+]
+features = ["test"]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.12", "3.13"]
+
+[tool.hatch.envs.test.scripts]
+list-env = "pip list"
+tests = "pytest -n auto"
 
 [tool.ruff]
 target-version = "py311"
@@ -52,6 +76,7 @@ ignore = [
   "E402",
   "E501",
   "E731",
+  "UP038",
 ]
 select = [
   "F",   # Pyflakes
@@ -69,3 +94,7 @@ fixable = ["I", "TID252"]
 [tool.ruff.lint.flake8-tidy-imports]
 # Disallow all relative imports.
 ban-relative-imports = "all"
+
+[tool.uv.sources]
+zarr = { path = "../zarr-python", editable = true }
+sparse = { path = "../../sparse", editable = true }
