@@ -21,7 +21,8 @@ class TestChunkGrid:
             obj._data,
             np.full((1,) * len(obj._shape), dtype=object, fill_value=None),
         )
-        assert obj._chunks == params["shape"]
+        expected_chunks = tuple((size,) for size in params["shape"])
+        assert obj._chunks == expected_chunks
 
     @pytest.mark.parametrize("shape", ((3, 4), (1, 5, 10)))
     def test_shape(self, shape):
@@ -47,8 +48,14 @@ class TestChunkGrid:
 
         assert obj.fill_value == fill_value
 
-    @pytest.mark.parametrize("chunks", ((2, 1), (4, 2)))
-    def test_chunks(self, chunks):
+    @pytest.mark.parametrize(
+        ["chunks", "expanded"],
+        (
+            ((2, 1), ((2, 2), (1, 1, 1))),
+            ((4, 2), ((4,), (2, 1))),
+        ),
+    )
+    def test_chunks(self, chunks, expanded):
         obj = ChunkGrid(
             shape=(4, 3),
             dtype="int32",
@@ -57,4 +64,4 @@ class TestChunkGrid:
             chunks=chunks,
         )
 
-        assert obj.chunks == chunks
+        assert obj.chunks == expanded
