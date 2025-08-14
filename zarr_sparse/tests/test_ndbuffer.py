@@ -113,12 +113,12 @@ class TestChunkGrid:
     @pytest.mark.parametrize(
         ["shape", "chunks"],
         (
-            ((6, 5), (2, 3)),
+            ((60, 3), (10, 3)),
             ((100, 100, 100), (20, 50, 50)),
             ((500,), (5,)),
         ),
     )
-    @pytest.mark.parametrize("nnz", (5, 15, 30))
+    @pytest.mark.parametrize("nnz", (1, 38, 70, 150))
     def test_setitem_chunks(self, nnz, shape, chunks, dtype, fill_value):
         order = "C"
         sparse_array = create_pydata_coo_array(
