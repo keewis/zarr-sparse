@@ -43,7 +43,7 @@ dependencies = [
 ]
 features = ["test"]
 
-[tool.hatch.envs.test.matrix]
+[[tool.hatch.envs.test.matrix]]
 python = ["3.12", "3.13"]
 
 [tool.hatch.envs.test.scripts]
