@@ -4,8 +4,8 @@ from zarr_sparse.sparse import extract_arrays
 
 
 def compare_fill_value(a, b):
-    if np.isnan(a) and np.isnan(b):
-        return True
+    if np.isnan(a) or np.isnan(b):
+        return np.isnan(a) and np.isnan(b)
 
     return a == b
 
