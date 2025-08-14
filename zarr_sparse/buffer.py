@@ -57,8 +57,8 @@ class ChunkGrid:
             chunks = shape
 
         self._chunks = expand_chunks(chunks, shape)
-        self._offsets = tuple(
-            np.cumulative_sum(c, include_initial=True)[:-1] for c in self._chunks
+        self._bounds = tuple(
+            np.cumulative_sum(c, include_initial=True) for c in self._chunks
         )
         grid_shape = tuple(math.ceil(s / max(c)) for s, c in zip(shape, self._chunks))
         self._data = np.full(grid_shape, dtype=object, fill_value=None)
@@ -108,9 +108,7 @@ class ChunkGrid:
             return ValueError("indexing is only supported for slices")
 
         normalized_key = tuple(normalize_slice(k, s) for k, s in zip(key, self.shape))
-        decomposed_slices = decompose_slices(
-            normalized_key, self._offsets, self.chunks, local=True
-        )
+        decomposed_slices = decompose_slices(normalized_key, self._bounds)
         chunk_indices_ = list(c for c, _ in decomposed_slices)
         by_dim = [sorted(set(c)) for c in zip(*chunk_indices_)]
         new_grid_shape = tuple(len(dim) for dim in by_dim)
@@ -156,9 +154,7 @@ class ChunkGrid:
 
         # decompose into selected chunks and slices into the value
         # iterate over selected chunks and assign the value subset
-        decomposed_slices = decompose_slices(
-            normalized_key, self._offsets, self.chunks, local=False
-        )
+        decomposed_slices = decompose_slices(normalized_key, self._bounds)
 
         for chunk_indices, value_slice in decomposed_slices:
             # TODO: fix the bug in `decompose_slice`
