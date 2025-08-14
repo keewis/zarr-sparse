@@ -16,6 +16,7 @@ from zarr.core.dtype.npy.int import BaseInt, Int64, UInt64
 from zarr.core.dtype.npy.string import FixedLengthUTF32, VariableLengthUTF8
 from zarr.registry import get_pipeline_class, register_codec
 
+from zarr_sparse.comparison import compare_fill_value
 from zarr_sparse.sparse import assemble_array, extract_arrays, sparse_keys
 
 MAX_INT_64 = np.iinfo(np.int64).max
@@ -358,7 +359,9 @@ class SparseArrayCodec(ArrayBytesCodec):
             return None
 
         sparse_metadata, arrays = extract_arrays(data)
-        if sparse_metadata.pop("fill_value") != chunk_spec.fill_value:
+        if not compare_fill_value(
+            sparse_metadata.pop("fill_value"), chunk_spec.fill_value
+        ):
             raise ValueError(
                 "sparse array fill_value doesn't match the chunk fill value"
             )
