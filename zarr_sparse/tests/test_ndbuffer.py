@@ -142,3 +142,48 @@ class TestChunkGrid:
             actual.get_value(),
             sparse_array,
         )
+
+    @pytest.mark.parametrize(
+        ["dtype", "fill_value"],
+        (
+            ("int64", 0),
+            ("int32", 3),
+            ("float32", 0),
+            ("float64", np.nan),
+        ),
+    )
+    @pytest.mark.parametrize(
+        ["shape", "chunks"],
+        (
+            ((60, 3), (10, 3)),
+            ((100, 100, 100), (20, 50, 50)),
+            ((500,), (5,)),
+        ),
+    )
+    @pytest.mark.parametrize("nnz", (1, 38, 70, 150))
+    @pytest.mark.parametrize("chunk_index", (0, 5, -1))
+    def test_getitem(self, nnz, shape, chunks, dtype, fill_value, chunk_index):
+        order = "C"
+        sparse_array = create_pydata_coo_array(
+            nnz=nnz, shape=shape, dtype=np.dtype(dtype), fill_value=fill_value
+        )
+
+        chunk_slices = create_chunk_slices(shape, chunks)
+
+        grid = ChunkGrid(
+            shape=sparse_array.shape,
+            order=order,
+            dtype=sparse_array.dtype,
+            fill_value=sparse_array.fill_value,
+            chunks=chunks,
+        )
+        for index, indexer in enumerate(chunk_slices):
+            chunk_loc = np.unravel_index(index, grid._data.shape)
+
+            grid._data[chunk_loc] = sparse_array[indexer]
+
+        chunk_indexer = chunk_slices[chunk_index]
+        actual = grid[chunk_indexer].get_value()
+        expected = sparse_array[chunk_indexer]
+
+        assert_sparse_equal(actual, expected)
