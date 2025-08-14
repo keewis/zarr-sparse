@@ -18,6 +18,11 @@ build-backend = "hatchling.build"
 pydata-sparse = ["sparse>=0.17.0"]
 scipy-sparse = ["scipy>=1.15.3"]
 torch-sparse = ["torch>=2.7.0"]
+test = [
+  "pytest",
+  "pytest-xdist",
+  "hypothesis",
+]
 
 [dependency-groups]
 dev = [
@@ -39,7 +44,7 @@ hooks.vcs.version-file = "zarr_sparse/_version.py"
 dependencies = [
   "sparse",
   "numpy",
-  "zarr-python",
+  "zarr",
 ]
 features = ["test"]
 
