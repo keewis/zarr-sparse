@@ -110,4 +110,5 @@ def test_metadata_roundtrip(sparse_metadata):
     encoded = metadata._encode_metadata_table(sparse_metadata)
     decoded = metadata._decode_metadata_table(encoded)
 
+    assert isinstance(encoded, bytes)
     assert sparse_metadata == decoded

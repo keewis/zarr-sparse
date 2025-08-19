@@ -101,22 +101,34 @@ def _encode_metadata_table(metadata):
     values = [encoders.get(name)(column) for name, column in metadata_.items()]
 
     metadata_table_bytes = [column_names] + values
-    nbytes = [len(v) for v in metadata_table_bytes]
 
-    initial_offset = len(nbytes) * 2 + 2  # format = "H" takes 2 bytes
-    offsets, _ = zip(*calculate_offset_size(initial_offset, nbytes))
-
-    offset_bytes = encode_ints(offsets, format="H")
+    offset_bytes = _encode_offset_table([len(part) for part in metadata_table_bytes])
 
     all_bytes = [offset_bytes] + metadata_table_bytes
 
     return b"".join(all_bytes)
 
 
-def _decode_metadata_table(bytes_):
+def _encode_offset_table(nbytes):
+    # format = "H" takes 2 bytes per entry, plus another two for the size
+    initial_offset = (len(nbytes) + 1) * 2
+    offsets, _ = zip(*calculate_offset_size(initial_offset, nbytes))
+
+    offset_bytes = encode_ints(offsets, format="H")
+
+    return offset_bytes
+
+
+def _decode_offset_table(bytes_):
     offsets = decode_ints(bytes_, format="H")
     offsets_ = offsets + [len(bytes_)]
     sizes = [upper - lower for lower, upper in zip(offsets_[:-1], offsets_[1:])]
+
+    return offsets, sizes
+
+
+def _decode_metadata_table(bytes_):
+    offsets, sizes = _decode_offset_table(bytes_)
 
     column_name_bytes, *column_bytes = [
         bytes_[slice_next(offset, size)] for offset, size in zip(offsets, sizes)
