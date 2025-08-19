@@ -1,10 +1,12 @@
 import struct
+from collections.abc import Iterable
 from functools import partial
+from typing import Any
 
 from zarr_sparse.slices import slice_next
 
 
-def calculate_offset_size(offset, sizes):
+def calculate_offset_size(offset: int, sizes: list[int]) -> Iterable[tuple[int, int]]:
     _offset = offset
     for size in sizes:
         yield offset, size
@@ -12,14 +14,14 @@ def calculate_offset_size(offset, sizes):
         offset += size
 
 
-def encode_ints(ints, format="L"):
+def encode_ints(ints: list[int], format: str = "L") -> bytes:
     length = len(ints)
 
     format_str = f"<H{length}{format}"
     return struct.pack(format_str, length, *ints)
 
 
-def decode_ints(bytes_, format="L"):
+def decode_ints(bytes_: bytes, format: str = "L") -> list[int]:
     [length] = struct.unpack("<H", bytes_[:2])
 
     format_ = struct.Struct(f"<{length}{format}")
@@ -27,15 +29,15 @@ def decode_ints(bytes_, format="L"):
     return list(format_.unpack(bytes_[2 : nbytes + 2]))
 
 
-def encode_string(s):
+def encode_string(s: str) -> bytes:
     return s.encode("utf-8")
 
 
-def decode_string(bytes_):
+def decode_string(bytes_: bytes) -> str:
     return bytes_.decode("utf-8")
 
 
-def encode_strings(strings, size_format="H"):
+def encode_strings(strings: list[str], size_format: str = "H") -> bytes:
     encoded = [encode_string(s) for s in strings]
     nbytes_per_entry = [len(b) for b in encoded]
 
@@ -44,7 +46,7 @@ def encode_strings(strings, size_format="H"):
     return table + b"".join(encoded)
 
 
-def decode_strings(bytes_, size_format="H"):
+def decode_strings(bytes_: bytes, size_format: str = "H") -> list[str]:
     nbytes_per_entry = decode_ints(bytes_, format=size_format)
 
     format_str = f"<H{len(nbytes_per_entry)}{size_format}"
@@ -73,7 +75,7 @@ decoders = {
 }
 
 
-def _encode_offset_table(nbytes):
+def _encode_offset_table(nbytes: list[int]) -> bytes:
     # format = "H" takes 2 bytes per entry, plus another two for the size
     initial_offset = (len(nbytes) + 1) * 2
     offsets, _ = zip(*calculate_offset_size(initial_offset, nbytes))
@@ -83,7 +85,7 @@ def _encode_offset_table(nbytes):
     return offset_bytes
 
 
-def _decode_offset_table(bytes_):
+def _decode_offset_table(bytes_: bytes) -> list[int]:
     offsets = decode_ints(bytes_, format="H")
     offsets_ = offsets + [len(bytes_)]
     sizes = [upper - lower for lower, upper in zip(offsets_[:-1], offsets_[1:])]
@@ -91,7 +93,7 @@ def _decode_offset_table(bytes_):
     return offsets, sizes
 
 
-def _encode_metadata_table(metadata):
+def _encode_metadata_table(metadata: dict[str, Any]) -> bytes:
     """encode the metadata table to bytes
 
     The format is:
@@ -125,7 +127,7 @@ def _encode_metadata_table(metadata):
     return b"".join(all_bytes)
 
 
-def _decode_metadata_table(bytes_):
+def _decode_metadata_table(bytes_: bytes) -> dict[str, Any]:
     offsets, sizes = _decode_offset_table(bytes_)
 
     column_name_bytes, *column_bytes = [
