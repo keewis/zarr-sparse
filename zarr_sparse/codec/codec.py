@@ -13,6 +13,7 @@ from zarr.core.common import JSON, parse_named_configuration
 from zarr.core.dtype.npy.int import Int64
 from zarr.registry import get_pipeline_class, register_codec
 
+from zarr_sparse.buffer import sparse_buffer_prototype
 from zarr_sparse.codec import metadata
 from zarr_sparse.comparison import compare_fill_value
 from zarr_sparse.slices import slice_next
@@ -105,6 +106,7 @@ class SparseArrayCodec(ArrayBytesCodec):
     def __init__(self):
         self.array_codecs = (BytesCodec(), ZstdCodec())
         self.table_codecs = (BytesCodec(),)
+        self.prototype = sparse_buffer_prototype()
 
     @classmethod
     def from_dict(cls, data: dict[str, JSON]) -> Self:
