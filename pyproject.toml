@@ -31,6 +31,7 @@ dev = [
   "hypothesis>=6.138.0",
   "ipdb>=0.13.13",
   "ipython>=9.2.0",
+  "pyinstrument>=5.1.1",
   "pytest>=8.3.5",
   "pytest-xdist>=3.6.1",
 ]
