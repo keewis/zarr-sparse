@@ -5,6 +5,10 @@ import itertools
 import numpy as np
 
 
+def slice_next(offset: int, size: int) -> slice[int]:
+    return slice(offset, offset + size)
+
+
 def slice_size(slice_: slice[int | None], size: int) -> int:
     return len(range(*slice_.indices(size)))
 
