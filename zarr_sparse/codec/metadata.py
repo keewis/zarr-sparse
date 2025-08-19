@@ -1,9 +1,7 @@
 import struct
 from functools import partial
 
-
-def slice_next(offset, size):
-    return slice(offset, offset + size)
+from zarr_sparse.slices import slice_next
 
 
 def calculate_offset_size(offset, sizes):
