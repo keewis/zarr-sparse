@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, Literal
 import numpy as np
 import numpy.typing as npt
 import sparse
-from zarr.core.buffer.core import Buffer, BufferPrototype, NDBuffer
+from zarr.core.buffer.core import BufferPrototype, NDBuffer
+from zarr.core.buffer.cpu import Buffer
 from zarr.registry import register_ndbuffer
 
 from zarr_sparse.chunks import expand_chunks
@@ -292,4 +293,4 @@ buffer_prototype = BufferPrototype(buffer=Buffer, nd_buffer=SparseNDBuffer)
 
 
 def sparse_buffer_prototype() -> BufferPrototype:
-    return BufferPrototype(buffer=Buffer, nd_buffer=NDBuffer)
+    return BufferPrototype(buffer=Buffer, nd_buffer=SparseNDBuffer)
