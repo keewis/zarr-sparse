@@ -162,10 +162,14 @@ class ChunkGrid:
             chunk_shape = tuple(
                 chunks[index] for index, chunks in zip(chunk_indices, self.chunks)
             )
-            if value.shape != chunk_shape:
+            if any(s > c for s, c, in zip(value.shape, chunk_shape)):
                 sliced = value[global_indexer]
             else:
                 sliced = value
+            if np.any(sliced.shape) == 0:
+                raise RuntimeError(
+                    f"Wrong global indexer {global_indexer} for {value=}"
+                )
             self._data[chunk_indices] = sliced
 
     def all_equal(self, other: Any, equal_nan: bool) -> bool:
@@ -258,7 +262,7 @@ class SparseNDBuffer(NDBuffer):
         raise NotImplementedError("can't convert to `numpy`")
 
     def as_ndarray_like(self):
-        return self._data
+        return self._data.get_value()
 
     def __getitem__(self, key: Any) -> Self:
         return self.__class__(self._data.__getitem__(key))
