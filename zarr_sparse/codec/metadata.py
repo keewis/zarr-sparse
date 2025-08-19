@@ -73,6 +73,24 @@ decoders = {
 }
 
 
+def _encode_offset_table(nbytes):
+    # format = "H" takes 2 bytes per entry, plus another two for the size
+    initial_offset = (len(nbytes) + 1) * 2
+    offsets, _ = zip(*calculate_offset_size(initial_offset, nbytes))
+
+    offset_bytes = encode_ints(offsets, format="H")
+
+    return offset_bytes
+
+
+def _decode_offset_table(bytes_):
+    offsets = decode_ints(bytes_, format="H")
+    offsets_ = offsets + [len(bytes_)]
+    sizes = [upper - lower for lower, upper in zip(offsets_[:-1], offsets_[1:])]
+
+    return offsets, sizes
+
+
 def _encode_metadata_table(metadata):
     """encode the metadata table to bytes
 
@@ -105,24 +123,6 @@ def _encode_metadata_table(metadata):
     all_bytes = [offset_bytes] + metadata_table_bytes
 
     return b"".join(all_bytes)
-
-
-def _encode_offset_table(nbytes):
-    # format = "H" takes 2 bytes per entry, plus another two for the size
-    initial_offset = (len(nbytes) + 1) * 2
-    offsets, _ = zip(*calculate_offset_size(initial_offset, nbytes))
-
-    offset_bytes = encode_ints(offsets, format="H")
-
-    return offset_bytes
-
-
-def _decode_offset_table(bytes_):
-    offsets = decode_ints(bytes_, format="H")
-    offsets_ = offsets + [len(bytes_)]
-    sizes = [upper - lower for lower, upper in zip(offsets_[:-1], offsets_[1:])]
-
-    return offsets, sizes
 
 
 def _decode_metadata_table(bytes_):
