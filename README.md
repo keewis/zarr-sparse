@@ -12,7 +12,7 @@ This does make reading specific parts (e.g. the coordinates) in a single request
 
 ```sh
 pip install \
-    "zarr @ git+https://github.com/keewis/zarr-python.git@sparse-array-patch" \
+    "zarr @ git+https://github.com/keewis/zarr-python.git@zarr-sparse-patch" \
     "zarr-sparse @ git+https://github.com/keewis/zarr-sparse.git@main"
 ```
 
