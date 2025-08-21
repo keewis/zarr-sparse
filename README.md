@@ -44,6 +44,7 @@ with zarr.storage.MemoryStore() as store:
     z = root.create_array(
         "a",
         data=x,
+        fill_value=x.fill_value,
         write_data=True,
         chunks=chunks,
         serializer=SparseArrayCodec(),
