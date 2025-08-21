@@ -12,7 +12,7 @@ This does make reading specific parts (e.g. the coordinates) in a single request
 
 ```sh
 pip install \
-    "zarr @ git+https://github.com/keewis/zarr-python.git@sparse-array-patch" \
+    "zarr @ git+https://github.com/keewis/zarr-python.git@zarr-sparse-patch" \
     "zarr-sparse @ git+https://github.com/keewis/zarr-sparse.git@main"
 ```
 
@@ -22,6 +22,7 @@ pip install \
 from zarr_sparse import SparseArrayCodec
 import numpy as np
 import sparse
+import zarr
 
 
 def generate_random_coo(nnz, shape, dtype, fill_value):
@@ -43,6 +44,7 @@ with zarr.storage.MemoryStore() as store:
     z = root.create_array(
         "a",
         data=x,
+        fill_value=x.fill_value,
         write_data=True,
         chunks=chunks,
         serializer=SparseArrayCodec(),
