@@ -22,6 +22,7 @@ pip install \
 from zarr_sparse import SparseArrayCodec
 import numpy as np
 import sparse
+import zarr
 
 
 def generate_random_coo(nnz, shape, dtype, fill_value):
