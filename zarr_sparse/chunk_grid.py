@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+from zarr_sparse.slices import slice_size
+
+if TYPE_CHECKING:
+    import sparse_indexing_container as sic
+
+
+def readjust_chunk_keys(
+    bounds: dict[tuple[int, ...], tuple[range, ...]],
+) -> dict[tuple[int, ...], tuple[range, ...]]:
+    mins = tuple(min(x) for x in zip(*bounds.keys()))
+    return {
+        tuple(part - offset for part, offset in zip(chunk_key, mins)): bound
+        for chunk_key, bound in bounds.items()
+    }
+
+
+@dataclass
+class ChunkGrid:
+    shape: tuple[int, ...]
+
+    chunk_shape: tuple[int, ...] = ()
+    bounds: dict[tuple[int, ...], tuple[range, ...]] = field(
+        default_factory=dict, init=False
+    )
+    data: dict[tuple[int, ...], sic.Container] = field(default_factory=dict, init=False)
+
+    def __setitem__(self, indexers: tuple[slice, ...], value: sic.Container) -> None:
+        offsets = tuple(s.start for s in indexers)
+        c_shape = tuple(s.stop - s.start for s in indexers)
+
+        if not self.data and offsets != (0,) * len(indexers):
+            # first chunk, must not have an offset
+            raise ValueError("First write must write to the first chunk")
+
+        if not self.chunk_shape:
+            self.chunk_shape = c_shape
+
+        position = tuple(
+            offset // size for offset, size in zip(offsets, self.chunk_shape)
+        )
+
+        self.data[position] = value
+        self.bounds[position] = tuple(
+            range(*indexer.indices(size)) for indexer, size in zip(indexers, self.shape)
+        )
+
+    def _select_keys(
+        self, selected_keys: list[tuple[int, ...]], shape: tuple[int, ...]
+    ):
+        new = type(self)(shape)
+        new.chunk_shape = self.chunk_shape
+
+        new.bounds = readjust_chunk_keys({k: self.bounds[k] for k in selected_keys})
+        new.data = {k: self.data[k] for k in selected_keys}
+
+        return new
+
+    def __getitem__(self, indexers: tuple[slice, ...]):
+        # find all keys that intersect with the indexers
+        selected_keys = [
+            key
+            for key, bounds in self.bounds.items()
+            if all(
+                bound.start < indexer.stop and bound.stop > indexer.start
+                for bound, indexer in zip(bounds, indexers)
+            )
+        ]
+        region_size = tuple(
+            slice_size(slice_, size) for slice_, size in zip(indexers, self.shape)
+        )
+        shape = tuple(
+            math.ceil(s / c) * c for s, c in zip(region_size, self.chunk_shape)
+        )
+
+        return self._select_keys(selected_keys, shape)
+
+    @property
+    def ndim(self) -> int:
+        return len(self.shape)
+
+    @property
+    def offsets(self) -> dict[tuple[int, ...], tuple[int, ...]]:
+        return {k: tuple(b.start for b in bounds) for k, bounds in self.bounds.items()}
+
+    def __repr__(self) -> str:
+        shape = self.shape
+        chunk_shape = self.chunk_shape
+
+        return f"<ChunkGrid {shape=}, {chunk_shape=}>"
