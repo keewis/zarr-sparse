@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from zarr_sparse import chunk_grid
@@ -44,3 +45,26 @@ def test_repr():
     assert "ChunkGrid" in actual
     assert f"shape={shape}" in actual
     assert f"chunk_shape={chunk_shape}" in actual
+
+
+@pytest.mark.parametrize("keys", ([(1,), (2,)], [(0,), (1,)]))
+def test_select_keys(keys):
+    data = np.arange(10)
+
+    grid = chunk_grid.ChunkGrid(shape=(10,), chunk_shape=(2,))
+
+    grid.bounds = {
+        (index,): (range(index * 2, (index + 1) * 2, 1),) for index in range(5)
+    }
+    grid.data = {key: data[indexer] for key, indexer in grid.bounds.items()}
+
+    actual = grid._select_keys(keys, shape=(4,))
+
+    indexers = [(slice(index * 2, (index + 1) * 2, 1),) for index, in keys]
+
+    assert len(actual.bounds) == len(keys)
+    assert list(actual.bounds.keys()) == [(0,), (1,)]
+    assert list(actual.bounds.values()) == [(range(*s.indices(10)),) for s, in indexers]
+    assert [d.tolist() for d in actual.data.values()] == [
+        data[s].tolist() for s in indexers
+    ]
