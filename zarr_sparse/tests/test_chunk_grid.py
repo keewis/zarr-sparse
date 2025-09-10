@@ -15,6 +15,15 @@ def gen_1d_bounds(start, stop, chunks):
     }
 
 
+def assert_data_equal(actual, expected):
+    __tracebackhide__ = True
+
+    left = {key: value.tolist() for key, value in actual.items()}
+    right = {key: value.tolist() for key, value in expected.items()}
+
+    assert left == right
+
+
 @pytest.mark.parametrize(
     "chunk_keys",
     (
@@ -118,21 +127,32 @@ def test_setitem_explicit():
 
 
 @pytest.mark.parametrize(
-    ["indexer", "expected_bounds"],
+    ["indexer", "expected_bounds", "expected_data_slice"],
     (
-        (slice(0, 5), gen_1d_bounds(0, 6, 2)),
-        (slice(1, 4), gen_1d_bounds(0, 4, 2)),
-        (slice(4, 6), gen_1d_bounds(0, 2, 2)),
-        (slice(5, 7), gen_1d_bounds(0, 4, 2)),
+        (slice(0, 5), gen_1d_bounds(0, 6, 2), slice(0, 6)),
+        (slice(1, 4), gen_1d_bounds(0, 4, 2), slice(0, 4)),
+        (slice(4, 6), gen_1d_bounds(0, 2, 2), slice(4, 6)),
+        (slice(5, 7), {(0,): (range(0, 2, 1),), (1,): (range(2, 3, 1),)}, slice(4, 8)),
     ),
 )
-def test_getitem(indexer, expected_bounds):
+def test_getitem(indexer, expected_bounds, expected_data_slice):
     grid = chunk_grid.ChunkGrid(shape=(7,), chunk_shape=(2,))
     data = np.arange(7)
 
-    grid.bounds = {(idx,): (range(idx * 2, (idx + 1) * 2, 1),) for idx in range(4)}
+    grid.bounds = {
+        (0,): (range(0, 2, 1),),
+        (1,): (range(2, 4, 1),),
+        (2,): (range(4, 6, 1),),
+        (3,): (range(6, 7, 1),),
+    }
     grid.data = {(idx,): data[idx * 2 : (idx + 1) * 2] for idx in range(4)}
 
     actual = grid[(indexer,)]
 
+    expected_data = {
+        (idx,): data[expected_data_slice][idx * 2 : (idx + 1) * 2]
+        for idx in range(len(expected_bounds))
+    }
+
     assert actual.bounds == expected_bounds
+    assert_data_equal(actual.data, expected_data)
