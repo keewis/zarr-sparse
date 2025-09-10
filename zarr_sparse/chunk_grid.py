@@ -100,7 +100,13 @@ class ChunkGrid:
     def _select_keys(
         self, selected_keys: list[tuple[int, ...]], shape: tuple[int, ...]
     ) -> Self:
-        new = type(self)(shape=shape, chunk_shape=self.chunk_shape)
+        new = type(self)(
+            shape=shape,
+            chunk_shape=self.chunk_shape,
+            dtype=self.dtype,
+            fill_value=self.fill_value,
+            order=self.order,
+        )
 
         new.bounds = readjust_bounds({k: self.bounds[k] for k in selected_keys})
         new.data = readjust_chunk_keys({k: self.data[k] for k in selected_keys})

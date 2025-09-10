@@ -43,7 +43,7 @@ def test_readjust_chunk_keys(chunk_keys):
 def test_init():
     shape = (10, 10)
     chunk_shape = (5, 5)
-    grid = chunk_grid.ChunkGrid(shape=shape, chunk_shape=chunk_shape)
+    grid = chunk_grid.ChunkGrid(shape=shape, dtype=np.float64, chunk_shape=chunk_shape)
 
     assert grid.shape == shape
     assert grid.chunk_shape == chunk_shape
@@ -58,7 +58,7 @@ def test_init():
 def test_repr():
     shape = (10, 10)
     chunk_shape = (5, 5)
-    grid = chunk_grid.ChunkGrid(shape=shape, chunk_shape=chunk_shape)
+    grid = chunk_grid.ChunkGrid(shape=shape, dtype=np.int64, chunk_shape=chunk_shape)
 
     actual = repr(grid)
 
@@ -71,7 +71,7 @@ def test_repr():
 def test_select_keys(keys):
     data = np.arange(10)
 
-    grid = chunk_grid.ChunkGrid(shape=(10,), chunk_shape=(2,))
+    grid = chunk_grid.ChunkGrid(shape=(10,), dtype=data.dtype, chunk_shape=(2,))
 
     grid.bounds = {
         (index,): (range(index * 2, (index + 1) * 2, 1),) for index in range(5)
@@ -91,7 +91,7 @@ def test_select_keys(keys):
 def test_setitem_implicit():
     data = np.arange(10 * 8).reshape(10, 8)
 
-    grid = chunk_grid.ChunkGrid(shape=(10, 8))
+    grid = chunk_grid.ChunkGrid(shape=(10, 8), dtype=data.dtype)
     assert grid.chunk_shape == ()
 
     grid[0:5, 0:5] = data[0:5, 0:5]
@@ -119,7 +119,7 @@ def test_setitem_implicit():
 def test_setitem_explicit():
     data = np.arange(10 * 8).reshape(10, 8)
 
-    grid = chunk_grid.ChunkGrid(shape=(10, 8), chunk_shape=(5, 4))
+    grid = chunk_grid.ChunkGrid(shape=(10, 8), dtype=data.dtype, chunk_shape=(5, 4))
     assert grid.chunk_shape == (5, 4)
 
     grid[0:5, 0:4] = data[0:5, 0:4]
@@ -136,8 +136,8 @@ def test_setitem_explicit():
     ),
 )
 def test_getitem(indexer, expected_bounds, expected_data_slice):
-    grid = chunk_grid.ChunkGrid(shape=(7,), chunk_shape=(2,))
     data = np.arange(7)
+    grid = chunk_grid.ChunkGrid(shape=(7,), dtype=data.dtype, chunk_shape=(2,))
 
     grid.bounds = {
         (0,): (range(0, 2, 1),),
