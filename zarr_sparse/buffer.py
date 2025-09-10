@@ -101,7 +101,7 @@ class SparseNDBuffer(NDBuffer):
         return combine_nd(self._data)
 
     def __getitem__(self, key: Any) -> Self:
-        return self.__class__(self._data.__getitem__(key))
+        return self.__class__(self._data[key])
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if isinstance(value, NDBuffer):
@@ -114,7 +114,7 @@ class SparseNDBuffer(NDBuffer):
             # fill value
             value = sparse.full(slice_sizes, fill_value=value, dtype=value.dtype)
 
-        self._data.__setitem__(key, value)
+        self._data[key] = value
 
     def all_equal(self, other: Any, equal_nan: bool = True) -> bool:
         """Compare to `other` using np.array_equal."""
