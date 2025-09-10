@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING
 from zarr_sparse.slices import slice_size
 
 if TYPE_CHECKING:
-    from typing import Any, Self
+    from typing import Any, Literal, Self
+
+    import numpy.typing as npt
 
     ChunkKeyType = tuple[int, ...]
     BoundsType = dict[tuple[int, ...], tuple[range, ...]]
@@ -38,9 +40,14 @@ def readjust_bounds(bounds: BoundsType) -> BoundsType:
 
 @dataclass
 class ChunkGrid:
+
+    dtype: npt.DTypeLike
+    order: Literal["C", "F"] = "C"
+    fill_value: Any | None = None
     shape: tuple[int, ...]
 
     chunk_shape: tuple[int, ...] = ()
+
     bounds: BoundsType = field(default_factory=dict, init=False)
     data: dict[tuple[int, ...], Any] = field(default_factory=dict, init=False)
 
@@ -104,5 +111,10 @@ class ChunkGrid:
     def __repr__(self) -> str:
         shape = self.shape
         chunk_shape = self.chunk_shape
+        fill_value = self.fill_value
+        order = self.order
+        dtype = self.dtype
 
-        return f"<ChunkGrid {shape=}, {chunk_shape=}>"
+        return (
+            f"<ChunkGrid {shape=}, {chunk_shape=}, {order=}, {dtype=}, {fill_value=}>"
+        )
