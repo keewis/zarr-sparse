@@ -40,6 +40,32 @@ def readjust_bounds(bounds: BoundsType) -> BoundsType:
 
 @dataclass
 class ChunkGrid:
+    """In-memory representation of a general chunk grid
+
+    Parameters
+    ----------
+    dtype : numpy.dtype
+        The dtype of the data
+    order : {"C", "F"}, default: "C"
+        The memory layout for multi-dimensional arrays.
+    fill_value : Any or None, optional
+        The fill value for missing chunks.
+    shape : tuple of int
+        The shape of the logical array.
+    chunk_shape : tuple of int, optional
+        The shape of each chunk. If not given, will be inferred from the first write.
+
+    Attributes
+    ----------
+    shape : tuple of int
+        The shape of the logical array.
+    chunk_shape : tuple of int
+        The shape of each chunk.
+    bounds : mapping of chunk key to tuple of range
+        The bounds for each chunk
+    data : mapping of chunk key to any
+        The stored data.
+    """
 
     dtype: npt.DTypeLike
     order: Literal["C", "F"] = "C"
@@ -106,6 +132,7 @@ class ChunkGrid:
 
     @property
     def offsets(self) -> dict[ChunkKeyType, tuple[int, ...]]:
+        """The offsets of each chunk"""
         return {k: tuple(b.start for b in bounds) for k, bounds in self.bounds.items()}
 
     def __repr__(self) -> str:
