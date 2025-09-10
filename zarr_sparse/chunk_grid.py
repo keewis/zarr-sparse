@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from zarr_sparse.slices import slice_size
+from zarr_sparse.slices import normalize_slice, slice_size
 
 if TYPE_CHECKING:
     from typing import Any, Literal, Self
@@ -13,6 +13,12 @@ if TYPE_CHECKING:
 
     ChunkKeyType = tuple[int, ...]
     BoundsType = dict[tuple[int, ...], tuple[range, ...]]
+
+
+def normalize_indexers(indexers, shape):
+    return tuple(
+        normalize_slice(indexer, size) for indexer, size in zip(indexers, shape)
+    )
 
 
 def readjust_chunk_keys(bounds: dict[ChunkKeyType, Any]) -> dict[ChunkKeyType, Any]:
@@ -78,6 +84,8 @@ class ChunkGrid:
     data: dict[tuple[int, ...], Any] = field(default_factory=dict, init=False)
 
     def __setitem__(self, indexers: tuple[slice, ...], value: Any) -> None:
+        indexers = normalize_indexers(indexers, self.shape)
+
         offsets = tuple(s.start for s in indexers)
         c_shape = tuple(s.stop - s.start for s in indexers)
 
@@ -114,6 +122,8 @@ class ChunkGrid:
         return new
 
     def __getitem__(self, indexers: tuple[slice, ...]) -> Self:
+        indexers = normalize_indexers(indexers, self.shape)
+
         # find all keys that intersect with the indexers
         selected_keys = [
             key
