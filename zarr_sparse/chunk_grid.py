@@ -7,12 +7,13 @@ from typing import TYPE_CHECKING
 from zarr_sparse.slices import slice_size
 
 if TYPE_CHECKING:
-    import sparse_indexing_container as sic
+    from typing import Any, Self
+
+    ChunkKeyType = tuple[int, ...]
+    BoundsType = dict[tuple[int, ...], tuple[range, ...]]
 
 
-def readjust_chunk_keys(
-    bounds: dict[tuple[int, ...], tuple[range, ...]],
-) -> dict[tuple[int, ...], tuple[range, ...]]:
+def readjust_chunk_keys(bounds: dict[ChunkKeyType, Any]) -> dict[ChunkKeyType, Any]:
     mins = tuple(min(x) for x in zip(*bounds.keys()))
     return {
         tuple(part - offset for part, offset in zip(chunk_key, mins)): bound
@@ -25,12 +26,10 @@ class ChunkGrid:
     shape: tuple[int, ...]
 
     chunk_shape: tuple[int, ...] = ()
-    bounds: dict[tuple[int, ...], tuple[range, ...]] = field(
-        default_factory=dict, init=False
-    )
-    data: dict[tuple[int, ...], sic.Container] = field(default_factory=dict, init=False)
+    bounds: BoundsType = field(default_factory=dict, init=False)
+    data: dict[tuple[int, ...], Any] = field(default_factory=dict, init=False)
 
-    def __setitem__(self, indexers: tuple[slice, ...], value: sic.Container) -> None:
+    def __setitem__(self, indexers: tuple[slice, ...], value: Any) -> None:
         offsets = tuple(s.start for s in indexers)
         c_shape = tuple(s.stop - s.start for s in indexers)
 
@@ -52,7 +51,7 @@ class ChunkGrid:
 
     def _select_keys(
         self, selected_keys: list[tuple[int, ...]], shape: tuple[int, ...]
-    ):
+    ) -> Self:
         new = type(self)(shape)
         new.chunk_shape = self.chunk_shape
 
@@ -61,7 +60,7 @@ class ChunkGrid:
 
         return new
 
-    def __getitem__(self, indexers: tuple[slice, ...]):
+    def __getitem__(self, indexers: tuple[slice, ...]) -> Self:
         # find all keys that intersect with the indexers
         selected_keys = [
             key
