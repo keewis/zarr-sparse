@@ -68,3 +68,41 @@ def test_select_keys(keys):
     assert [d.tolist() for d in actual.data.values()] == [
         data[s].tolist() for s in indexers
     ]
+
+
+def test_setitem_implicit():
+    data = np.arange(10 * 8).reshape(10, 8)
+
+    grid = chunk_grid.ChunkGrid(shape=(10, 8))
+    assert grid.chunk_shape == ()
+
+    grid[0:5, 0:5] = data[0:5, 0:5]
+    step1_bounds = {(0, 0): (range(0, 5, 1), range(0, 5, 1))}
+    assert grid.chunk_shape == (5, 5)
+    assert grid.bounds == step1_bounds
+    np.testing.assert_equal(grid.data[(0, 0)], data[0:5, 0:5])
+
+    grid[5:10, 0:5] = data[5:10, 0:5]
+    step2_bounds = {(1, 0): (range(5, 10, 1), range(0, 5, 1))}
+    assert grid.bounds == step1_bounds | step2_bounds
+    np.testing.assert_equal(grid.data[(1, 0)], data[5:10, 0:5])
+
+    grid[0:5, 5:8] = data[0:5, 5:8]
+    step3_bounds = {(0, 1): (range(0, 5, 1), range(5, 8, 1))}
+    assert grid.bounds == step1_bounds | step2_bounds | step3_bounds
+    np.testing.assert_equal(grid.data[(0, 1)], data[0:5, 5:8])
+
+    grid[5:10, 5:8] = data[5:10, 5:8]
+    step4_bounds = {(1, 1): (range(5, 10, 1), range(5, 8, 1))}
+    assert grid.bounds == step1_bounds | step2_bounds | step3_bounds | step4_bounds
+    np.testing.assert_equal(grid.data[(1, 1)], data[5:10, 5:8])
+
+
+def test_setitem_explicit():
+    data = np.arange(10 * 8).reshape(10, 8)
+
+    grid = chunk_grid.ChunkGrid(shape=(10, 8), chunk_shape=(5, 4))
+    assert grid.chunk_shape == (5, 4)
+
+    grid[0:5, 0:4] = data[0:5, 0:4]
+    assert grid.bounds == {(0, 0): (range(0, 5, 1), range(0, 4, 1))}
