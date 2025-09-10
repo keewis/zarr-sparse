@@ -21,6 +21,21 @@ def readjust_chunk_keys(bounds: dict[ChunkKeyType, Any]) -> dict[ChunkKeyType, A
     }
 
 
+def readjust_bounds(bounds: BoundsType) -> BoundsType:
+    min_chunk_key = tuple(min(x) for x in zip(*bounds.keys()))
+
+    bound_starts = (tuple(b.start for b in bounds_) for bounds_ in bounds.values())
+    min_bound = tuple(min(x) for x in zip(*bound_starts))
+
+    return {
+        tuple(part - offset for part, offset in zip(chunk_key, min_chunk_key)): tuple(
+            range(b.start - offset, b.stop - offset, b.step)
+            for b, offset in zip(bound, min_bound)
+        )
+        for chunk_key, bound in bounds.items()
+    }
+
+
 @dataclass
 class ChunkGrid:
     shape: tuple[int, ...]
@@ -52,11 +67,10 @@ class ChunkGrid:
     def _select_keys(
         self, selected_keys: list[tuple[int, ...]], shape: tuple[int, ...]
     ) -> Self:
-        new = type(self)(shape)
-        new.chunk_shape = self.chunk_shape
+        new = type(self)(shape=shape, chunk_shape=self.chunk_shape)
 
-        new.bounds = readjust_chunk_keys({k: self.bounds[k] for k in selected_keys})
-        new.data = {k: self.data[k] for k in selected_keys}
+        new.bounds = readjust_bounds({k: self.bounds[k] for k in selected_keys})
+        new.data = readjust_chunk_keys({k: self.data[k] for k in selected_keys})
 
         return new
 
