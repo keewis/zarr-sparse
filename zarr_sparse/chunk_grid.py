@@ -105,7 +105,7 @@ class ChunkGrid:
         return len(self.shape)
 
     @property
-    def offsets(self) -> dict[tuple[int, ...], tuple[int, ...]]:
+    def offsets(self) -> dict[ChunkKeyType, tuple[int, ...]]:
         return {k: tuple(b.start for b in bounds) for k, bounds in self.bounds.items()}
 
     def __repr__(self) -> str:
