@@ -67,10 +67,10 @@ class ChunkGrid:
         The stored data.
     """
 
+    shape: tuple[int, ...]
     dtype: npt.DTypeLike
     order: Literal["C", "F"] = "C"
     fill_value: Any | None = None
-    shape: tuple[int, ...]
 
     chunk_shape: tuple[int, ...] = ()
 
