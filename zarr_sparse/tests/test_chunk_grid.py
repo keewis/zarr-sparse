@@ -33,14 +33,14 @@ def assert_data_equal(actual, expected):
         pytest.param(dict.fromkeys([(0, 1), (1, 1)]), id="column"),
     ),
 )
-def test_readjust_chunk_keys(chunk_keys):
+def test_readjust_chunk_keys(chunk_keys) -> None:
     actual = chunk_grid.readjust_chunk_keys(chunk_keys)
 
     min_values = tuple(min(v) for v in zip(*actual.keys()))
     assert min_values == (0,) * len(min_values)
 
 
-def test_init():
+def test_init() -> None:
     shape = (10, 10)
     chunk_shape = (5, 5)
     grid = chunk_grid.ChunkGrid(shape=shape, dtype=np.float64, chunk_shape=chunk_shape)
@@ -55,7 +55,7 @@ def test_init():
     assert grid.offsets == {}
 
 
-def test_repr():
+def test_repr() -> None:
     shape = (10, 10)
     chunk_shape = (5, 5)
     grid = chunk_grid.ChunkGrid(shape=shape, dtype=np.int64, chunk_shape=chunk_shape)
@@ -68,7 +68,7 @@ def test_repr():
 
 
 @pytest.mark.parametrize("keys", ([(1,), (2,)], [(0,), (1,)]))
-def test_select_keys(keys):
+def test_select_keys(keys) -> None:
     data = np.arange(10)
 
     grid = chunk_grid.ChunkGrid(shape=(10,), dtype=data.dtype, chunk_shape=(2,))
@@ -88,7 +88,7 @@ def test_select_keys(keys):
     ]
 
 
-def test_setitem_implicit_out_of_order():
+def test_setitem_implicit_out_of_order() -> None:
     data = np.arange(5)
 
     grid = chunk_grid.ChunkGrid(shape=data.shape, dtype=data.dtype)
@@ -112,7 +112,7 @@ def test_setitem_implicit_out_of_order():
     np.testing.assert_equal(grid.data[(1,)], data[2:4])
 
 
-def test_setitem_implicit():
+def test_setitem_implicit() -> None:
     data = np.arange(10 * 8).reshape(10, 8)
 
     grid = chunk_grid.ChunkGrid(shape=(10, 8), dtype=data.dtype)
@@ -140,7 +140,7 @@ def test_setitem_implicit():
     np.testing.assert_equal(grid.data[(1, 1)], data[5:10, 5:8])
 
 
-def test_setitem_explicit():
+def test_setitem_explicit() -> None:
     data = np.arange(10 * 8).reshape(10, 8)
 
     grid = chunk_grid.ChunkGrid(shape=(10, 8), dtype=data.dtype, chunk_shape=(5, 4))
@@ -159,7 +159,7 @@ def test_setitem_explicit():
         (slice(5, 7), {(0,): (range(0, 2, 1),), (1,): (range(2, 3, 1),)}, slice(4, 8)),
     ),
 )
-def test_getitem(indexer, expected_bounds, expected_data_slice):
+def test_getitem(indexer, expected_bounds, expected_data_slice) -> None:
     data = np.arange(7)
     grid = chunk_grid.ChunkGrid(shape=(7,), dtype=data.dtype, chunk_shape=(2,))
 
