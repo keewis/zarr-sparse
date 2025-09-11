@@ -15,6 +15,7 @@ from zarr.registry import get_pipeline_class, register_codec
 
 from zarr_sparse.buffer import sparse_buffer_prototype
 from zarr_sparse.codec import metadata
+from zarr_sparse.combine import first_value
 from zarr_sparse.comparison import compare_fill_value
 from zarr_sparse.slices import slice_next
 from zarr_sparse.sparse import assemble_array, extract_arrays, sparse_keys
@@ -176,7 +177,7 @@ class SparseArrayCodec(ArrayBytesCodec):
     async def _encode_single(
         self, chunk_array: NDBuffer, chunk_spec: ArraySpec
     ) -> Buffer | None:
-        data = chunk_array._data.get_chunk()
+        data = first_value(chunk_array._data.data)
         if data.nnz == 0 and not chunk_spec.config.write_empty_chunks:
             return None
 
