@@ -120,7 +120,43 @@ class SparseNDBuffer(NDBuffer):
             # Handle None fill_value for Zarr V2
             return False
 
-        return self._data.all_equal(other, equal_nan=equal_nan)
+        # - other is multi-dim: return false if:
+        #   - shape
+        #   - dtype
+        #   - order
+        #   - fill_value
+        #   - chunk_shape
+        #   - bounds
+        #   don't match
+        # - if other is 0d:
+        #   - get a scalar
+        #   - compare every value in the chunk grid to the scalar
+        # - if other is multi-dim and matches, compare every chunk
+
+        if other.ndim != 0 and (
+            self.shape != other.shape
+            or self.dtype != other.dtype
+            or self.order != other.order
+            or self.fill_value != other.fill_value
+            or self.chunk_shape != other.chunk_shape
+            or self.bounds != other.bounds
+        ):
+            return False
+        if other.ndim == 0:
+            if isinstance(other, ChunkGrid):
+                # extract a single value from the chunk grid
+                raise NotImplementedError(
+                    "scalar wrapped by a chunk grid not supported"
+                )
+            else:
+                scalar = other
+            to_compare = ((c, scalar) for c in self._data.data.values())
+        else:
+            to_compare = zip(
+                self._data.data.values(), other._data.data.values().ravel().tolist()
+            )
+
+        return all(sparse_equal(a, b, equal_nan=equal_nan) for a, b in to_compare)
 
 
 buffer_prototype = BufferPrototype(buffer=Buffer, nd_buffer=SparseNDBuffer)
