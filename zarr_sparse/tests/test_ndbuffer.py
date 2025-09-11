@@ -1,198 +1,65 @@
 import numpy as np
 import pytest
+import sparse
 
-from zarr_sparse.buffer import ChunkGrid
-from zarr_sparse.comparison import assert_sparse_equal
-from zarr_sparse.tests.generate import create_chunk_slices, create_pydata_coo_array
+from zarr_sparse.buffer import SparseNDBuffer
+from zarr_sparse.chunk_grid import ChunkGrid
 
 
-class TestChunkGrid:
-    @pytest.mark.parametrize(
-        "params",
-        (
-            {"shape": (2, 3), "dtype": "int64", "order": "C", "fill_value": 0},
-            {"shape": (3,), "dtype": "int8", "order": "F", "fill_value": 15},
-            {"shape": (10, 1, 15), "dtype": "float32", "order": "C", "fill_value": 0.0},
-        ),
-    )
-    def test_init(self, params):
-        obj = ChunkGrid(**params)
+class TestNDBuffer:
+    def test_init(self):
+        chunk_grid = ChunkGrid(shape=(4, 4), dtype=np.float64)
 
-        assert {k: getattr(obj, f"_{k}") for k in params} == params
-        np.testing.assert_equal(
-            obj._data,
-            np.full((1,) * len(obj._shape), dtype=object, fill_value=None),
+        buffer = SparseNDBuffer(chunk_grid)
+        assert buffer._data is chunk_grid
+
+    def test_create(self):
+        shape = (4, 4)
+        order = "F"
+        fill_value = 0
+        dtype = np.uint8
+        buffer = SparseNDBuffer.create(
+            shape=shape, dtype=dtype, order=order, fill_value=fill_value
         )
-        expected_chunks = tuple((size,) for size in params["shape"])
-        assert obj._chunks == expected_chunks
 
-    @pytest.mark.parametrize("shape", ((3, 4), (1, 5, 10)))
-    def test_shape(self, shape):
-        obj = ChunkGrid(shape=shape, dtype="float32", order="C", fill_value=0.0)
-
-        assert obj.shape == shape
-
-    @pytest.mark.parametrize("dtype", ("float32", "int64"))
-    def test_dtype(self, dtype):
-        obj = ChunkGrid(shape=(4, 3), dtype=dtype, order="C", fill_value=0.0)
-
-        assert obj.dtype == dtype
-
-    @pytest.mark.parametrize("order", ("C", "F"))
-    def test_order(self, order):
-        obj = ChunkGrid(shape=(4, 3), dtype="int32", order=order, fill_value=0.0)
-
-        assert obj.order == order
-
-    @pytest.mark.parametrize("fill_value", (0, 1))
-    def test_fill_value(self, fill_value):
-        obj = ChunkGrid(shape=(4, 3), dtype="int32", order="C", fill_value=fill_value)
-
-        assert obj.fill_value == fill_value
+        assert buffer._data.shape == shape
+        assert buffer._data.dtype == dtype
+        assert buffer._data.order == order
+        assert buffer._data.fill_value == fill_value
 
     @pytest.mark.parametrize(
-        ["chunks", "expanded"],
+        "array",
         (
-            ((2, 1), ((2, 2), (1, 1, 1))),
-            ((4, 2), ((4,), (2, 1))),
+            sparse.full(shape=(2, 2, 2), dtype="uint8", fill_value=255),
+            sparse.full(shape=(4, 4), dtype="int64", fill_value=0),
+            sparse.full(shape=(8,), dtype="float64", fill_value=np.nan),
         ),
     )
-    def test_chunks(self, chunks, expanded):
-        obj = ChunkGrid(
-            shape=(4, 3),
-            dtype="int32",
-            order="C",
-            fill_value=0,
-            chunks=chunks,
+    def test_from_ndarray_like(self, array):
+        actual = SparseNDBuffer.from_ndarray_like(array)
+
+        assert actual._data.shape == array.shape
+        assert actual._data.dtype == array.dtype
+        assert actual._data.fill_value == array.fill_value or (
+            np.isnan(actual._data.fill_value) and np.isnan(array.fill_value)
         )
 
-        assert obj.chunks == expanded
-
-    @pytest.mark.parametrize(
-        ["dtype", "fill_value"],
-        (
-            ("int64", 0),
-            ("int32", 3),
-            ("float32", 0),
-            ("float64", np.nan),
-        ),
-    )
-    @pytest.mark.parametrize(
-        ["shape", "chunks"],
-        (
-            ((60, 3), (10, 3)),
-            ((100, 100, 100), (20, 50, 50)),
-            ((500,), (5,)),
-        ),
-    )
-    @pytest.mark.parametrize("nnz", (1, 38, 70, 150))
-    def test_setitem_full(self, nnz, shape, chunks, dtype, fill_value):
-        order = "C"
-        sparse_array = create_pydata_coo_array(
-            nnz=nnz, shape=shape, dtype=np.dtype(dtype), fill_value=fill_value
+        chunk_key = (0,) * array.ndim
+        assert actual._data.bounds == {
+            chunk_key: tuple(range(0, n, 1) for n in array.shape)
+        }
+        assert (
+            list(actual._data.data.keys()) == [chunk_key]
+            and actual._data.data[chunk_key] is array
         )
 
-        print(f"input: {sparse_array=}, {chunks=}")
+    def test_as_ndarray_like(self):
+        array = np.arange(10)
+        chunk_grid = ChunkGrid(shape=array.shape, dtype=array.dtype, fill_value=0)
+        chunk_grid[0:5] = array[0:5]
+        chunk_grid[5:10] = array[5:10]
 
-        actual = ChunkGrid(
-            shape=sparse_array.shape,
-            order=order,
-            dtype=sparse_array.dtype,
-            fill_value=sparse_array.fill_value,
-            chunks=chunks,
-        )
-        print(f"ChunkGrid (before assignment):\n{actual}")
-        actual[(slice(None),) * sparse_array.ndim] = sparse_array
-        print(f"ChunkGrid (after assignment):\n{actual}")
+        buffer_ = SparseNDBuffer(chunk_grid)
 
-        assert_sparse_equal(
-            actual.get_value(),
-            sparse_array,
-        )
-
-    @pytest.mark.parametrize(
-        ["dtype", "fill_value"],
-        (
-            ("int64", 0),
-            ("int32", 3),
-            ("float32", 0),
-            ("float64", np.nan),
-        ),
-    )
-    @pytest.mark.parametrize(
-        ["shape", "chunks"],
-        (
-            ((60, 3), (10, 3)),
-            ((100, 100, 100), (20, 50, 50)),
-            ((500,), (5,)),
-        ),
-    )
-    @pytest.mark.parametrize("nnz", (1, 38, 70, 150))
-    def test_setitem_chunks(self, nnz, shape, chunks, dtype, fill_value):
-        order = "C"
-        sparse_array = create_pydata_coo_array(
-            nnz=nnz, shape=shape, dtype=np.dtype(dtype), fill_value=fill_value
-        )
-
-        chunk_slices = create_chunk_slices(shape, chunks)
-
-        actual = ChunkGrid(
-            shape=sparse_array.shape,
-            order=order,
-            dtype=sparse_array.dtype,
-            fill_value=sparse_array.fill_value,
-            chunks=chunks,
-        )
-
-        for indexer in chunk_slices:
-            actual[indexer] = sparse_array[indexer]
-
-        assert_sparse_equal(
-            actual.get_value(),
-            sparse_array,
-        )
-
-    @pytest.mark.parametrize(
-        ["dtype", "fill_value"],
-        (
-            ("int64", 0),
-            ("int32", 3),
-            ("float32", 0),
-            ("float64", np.nan),
-        ),
-    )
-    @pytest.mark.parametrize(
-        ["shape", "chunks"],
-        (
-            ((60, 3), (10, 3)),
-            ((100, 100, 100), (20, 50, 50)),
-            ((500,), (5,)),
-        ),
-    )
-    @pytest.mark.parametrize("nnz", (1, 38, 70, 150))
-    @pytest.mark.parametrize("chunk_index", (0, 5, -1))
-    def test_getitem(self, nnz, shape, chunks, dtype, fill_value, chunk_index):
-        order = "C"
-        sparse_array = create_pydata_coo_array(
-            nnz=nnz, shape=shape, dtype=np.dtype(dtype), fill_value=fill_value
-        )
-
-        chunk_slices = create_chunk_slices(shape, chunks)
-
-        grid = ChunkGrid(
-            shape=sparse_array.shape,
-            order=order,
-            dtype=sparse_array.dtype,
-            fill_value=sparse_array.fill_value,
-            chunks=chunks,
-        )
-        for index, indexer in enumerate(chunk_slices):
-            chunk_loc = np.unravel_index(index, grid._data.shape)
-
-            grid._data[chunk_loc] = sparse_array[indexer]
-
-        chunk_indexer = chunk_slices[chunk_index]
-        actual = grid[chunk_indexer].get_value()
-        expected = sparse_array[chunk_indexer]
-
-        assert_sparse_equal(actual, expected)
+        actual = buffer_.as_ndarray_like()
+        np.testing.assert_equal(actual, array)

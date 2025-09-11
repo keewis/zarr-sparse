@@ -1,13 +1,12 @@
 import itertools
 
-import numpy as np
+
+def first_key(mapping):
+    return next(iter(mapping.keys()))
 
 
-def tiles_by_id(parts):
-    return {
-        np.unravel_index(index, parts.shape): array
-        for index, array in enumerate(parts.flatten())
-    }
+def first_value(mapping):
+    return next(iter(mapping.values()))
 
 
 def until_nth(index):
@@ -24,23 +23,26 @@ def as_item_key(key):
     return wrapper
 
 
+def by_key(it):
+    return it[0]
+
+
 def groupby_mapping(mapping, key):
     wrapped_key = as_item_key(key)
-    raw_groups = itertools.groupby(
-        sorted(mapping.items(), key=wrapped_key), key=wrapped_key
-    )
+    raw_groups = itertools.groupby(sorted(mapping.items(), key=by_key), key=wrapped_key)
     return ((key, (el for _, el in group)) for key, group in raw_groups)
 
 
-def combine_nd(parts):
-    tiles = tiles_by_id(parts)
-    xp = parts.flat[0].__array_namespace__()
+def combine_nd(tiles):
+    xp = first_value(tiles).__array_namespace__()
+
+    ndim = len(first_key(tiles))
 
     # innermost to outermost
-    for axis in range(parts.ndim - 1, -1, -1):
+    for axis in range(ndim - 1, -1, -1):
         tiles = {
             key: xp.concat(list(arrays), axis=axis)
             for key, arrays in groupby_mapping(tiles, key=until_nth(axis))
         }
 
-    return next(iter(tiles.values()))
+    return first_value(tiles)

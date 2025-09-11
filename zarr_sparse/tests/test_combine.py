@@ -5,27 +5,15 @@ from zarr_sparse import combine
 
 
 @pytest.mark.parametrize(
-    ["parts", "expected_ids"],
+    ["mapping", "expected"],
     (
-        (
-            np.array(
-                [[{"x": 1}, {"x": 2}, {"x": 3}], [{"x": 4}, {"x": 5}, {"x": 6}]],
-                dtype=object,
-            ),
-            [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)],
-        ),
-        (
-            np.array(
-                [[[{"x": 1}], [{"x": 2}]], [[{"x": 3}], [{"x": 4}]]], dtype=object
-            ),
-            [(0, 0, 0), (0, 1, 0), (1, 0, 0), (1, 1, 0)],
-        ),
+        ({"a": 1, "b": 2}, 1),
+        ({1: 3, 0: 1}, 3),
     ),
 )
-def test_tiles_by_id(parts, expected_ids):
-    expected = {id_: {"x": index} for index, id_ in enumerate(expected_ids, start=1)}
+def test_first_value(mapping, expected):
+    actual = combine.first_value(mapping)
 
-    actual = combine.tiles_by_id(parts)
     assert actual == expected
 
 
@@ -157,7 +145,11 @@ def create_grid(shapes, dtype):
 )
 def test_combine_nd(shapes, expected):
     parts = create_grid(shapes, expected.dtype)
+    tiles = {
+        np.unravel_index(index, parts.shape): array
+        for index, array in enumerate(parts.flatten())
+    }
 
-    actual = combine.combine_nd(parts)
+    actual = combine.combine_nd(tiles)
 
     np.testing.assert_equal(actual, expected)
