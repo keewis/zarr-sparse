@@ -88,6 +88,30 @@ def test_select_keys(keys):
     ]
 
 
+def test_setitem_implicit_out_of_order():
+    data = np.arange(5)
+
+    grid = chunk_grid.ChunkGrid(shape=data.shape, dtype=data.dtype)
+    assert grid.chunk_shape == ()
+
+    grid[4:5] = data[4:5]
+    step1_bounds = {(4,): (range(4, 5, 1),)}
+    assert grid.chunk_shape == (1,)
+    assert grid.bounds == step1_bounds
+    np.testing.assert_equal(grid.data[(4,)], data[4:5])
+
+    grid[0:2] = data[0:2]
+    step2_bounds = {(0,): (range(0, 2, 1),), (2,): (range(4, 5, 1),)}
+    assert grid.bounds == step2_bounds
+    np.testing.assert_equal(grid.data[(0,)], data[0:2])
+    np.testing.assert_equal(grid.data[(2,)], data[4:5])
+
+    grid[2:4] = data[2:4]
+    step3_bounds = {(1,): (range(2, 4, 1),)}
+    assert grid.bounds == step2_bounds | step3_bounds
+    np.testing.assert_equal(grid.data[(1,)], data[2:4])
+
+
 def test_setitem_implicit():
     data = np.arange(10 * 8).reshape(10, 8)
 
