@@ -112,6 +112,23 @@ def test_setitem_implicit_out_of_order() -> None:
     np.testing.assert_equal(grid.data[(1,)], data[2:4])
 
 
+def test_setitem_implicit_2d_partial() -> None:
+    data = np.arange(9).reshape((3, 3))
+    grid = chunk_grid.ChunkGrid(shape=data.shape, dtype=data.dtype)
+
+    grid[2:3, 2:3] = data[2:3, 2:3]
+    assert grid.chunk_shape == (1, 1)
+
+    grid[2:3, 0:2] = data[2:3, 0:2]
+    assert grid.chunk_shape == (1, 2)
+
+    grid[0:2, 2:3] = data[2:3, 4:5]
+    assert grid.chunk_shape == (2, 2)
+
+    grid[0:2, 0:2] = data[0:2, 0:2]
+    assert grid.chunk_shape == (2, 2)
+
+
 def test_setitem_implicit() -> None:
     data = np.arange(10 * 8).reshape(10, 8)
 

@@ -115,9 +115,13 @@ class ChunkGrid:
         offsets = tuple(s.start for s in indexers)
         c_shape = tuple(s.stop - s.start for s in indexers)
 
-        if self.chunk_shape < c_shape:
-            # bigger chunk written, update the chunk shape
+        if not self.chunk_shape:
             self.chunk_shape = c_shape
+        elif self.chunk_shape != c_shape:
+            # bigger chunk written, update the chunk shape
+            self.chunk_shape = tuple(
+                max(old, new) for old, new in zip(self.chunk_shape, c_shape)
+            )
             self.bounds, self.data = recompute_chunk_keys(
                 self.bounds,
                 self.data,
