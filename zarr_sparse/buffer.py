@@ -46,8 +46,6 @@ def sparse_equal(a, b, equal_nan: bool) -> bool:
 
 @register_ndbuffer
 class SparseNDBuffer(NDBuffer):
-    chunked = True
-
     def __init__(self, chunk_grid) -> None:
         if chunk_grid is None:
             raise ValueError("chunk grid is `None`")
