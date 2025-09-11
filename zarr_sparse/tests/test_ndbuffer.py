@@ -52,3 +52,14 @@ class TestNDBuffer:
             list(actual._data.data.keys()) == [chunk_key]
             and actual._data.data[chunk_key] is array
         )
+
+    def test_as_ndarray_like(self):
+        array = np.arange(10)
+        chunk_grid = ChunkGrid(shape=array.shape, dtype=array.dtype, fill_value=0)
+        chunk_grid[0:5] = array[0:5]
+        chunk_grid[5:10] = array[5:10]
+
+        buffer_ = SparseNDBuffer(chunk_grid)
+
+        actual = buffer_.as_ndarray_like()
+        np.testing.assert_equal(actual, array)
