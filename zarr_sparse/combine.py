@@ -23,11 +23,13 @@ def as_item_key(key):
     return wrapper
 
 
+def by_key(it):
+    return it[0]
+
+
 def groupby_mapping(mapping, key):
     wrapped_key = as_item_key(key)
-    raw_groups = itertools.groupby(
-        sorted(mapping.items(), key=wrapped_key), key=wrapped_key
-    )
+    raw_groups = itertools.groupby(sorted(mapping.items(), key=by_key), key=wrapped_key)
     return ((key, (el for _, el in group)) for key, group in raw_groups)
 
 
