@@ -50,6 +50,26 @@ def readjust_bounds(bounds: BoundsType) -> BoundsType:
     }
 
 
+def recompute_chunk_keys(
+    bounds: BoundsType, data: dict[ChunkKeyType, Any], *, chunk_shape: tuple[int, ...]
+) -> (BoundsType, dict[ChunkKeyType, Any]):
+    if not bounds:
+        # nothing to do
+        return bounds, data
+
+    translations = {
+        chunk_key: tuple(
+            range_.start // size for range_, size in zip(bound, chunk_shape)
+        )
+        for chunk_key, bound in bounds.items()
+    }
+
+    new_bounds = {translations[chunk_key]: bound for chunk_key, bound in bounds.items()}
+    new_data = {translations[chunk_key]: value for chunk_key, value in data.items()}
+
+    return new_bounds, new_data
+
+
 @dataclass
 class ChunkGrid:
     """In-memory representation of a general chunk grid
@@ -95,12 +115,14 @@ class ChunkGrid:
         offsets = tuple(s.start for s in indexers)
         c_shape = tuple(s.stop - s.start for s in indexers)
 
-        if not self.data and offsets != (0,) * len(indexers):
-            # first chunk, must not have an offset
-            raise ValueError("First write must write to the first chunk")
-
-        if not self.chunk_shape:
+        if self.chunk_shape < c_shape:
+            # bigger chunk written, update the chunk shape
             self.chunk_shape = c_shape
+            self.bounds, self.data = recompute_chunk_keys(
+                self.bounds,
+                self.data,
+                chunk_shape=c_shape,
+            )
 
         position = tuple(
             offset // size for offset, size in zip(offsets, self.chunk_shape)
