@@ -13,9 +13,15 @@ if TYPE_CHECKING:
 
     ChunkKeyType = tuple[int, ...]
     BoundsType = dict[tuple[int, ...], tuple[range, ...]]
+    IndexerType = slice | tuple[slice, ...]
 
 
-def normalize_indexers(indexers, shape):
+def normalize_indexers(
+    indexers: IndexerType, shape: tuple[int, ...]
+) -> tuple[slice, ...]:
+    if not isinstance(indexers, tuple):
+        indexers = (indexers,)
+
     return tuple(
         normalize_slice(indexer, size) for indexer, size in zip(indexers, shape)
     )
@@ -83,7 +89,7 @@ class ChunkGrid:
     bounds: BoundsType = field(default_factory=dict, init=False)
     data: dict[tuple[int, ...], Any] = field(default_factory=dict, init=False)
 
-    def __setitem__(self, indexers: tuple[slice, ...], value: Any) -> None:
+    def __setitem__(self, indexers: IndexerType, value: Any) -> None:
         indexers = normalize_indexers(indexers, self.shape)
 
         offsets = tuple(s.start for s in indexers)
@@ -121,7 +127,7 @@ class ChunkGrid:
 
         return new
 
-    def __getitem__(self, indexers: tuple[slice, ...]) -> Self:
+    def __getitem__(self, indexers: IndexerType) -> Self:
         indexers = normalize_indexers(indexers, self.shape)
 
         # find all keys that intersect with the indexers
