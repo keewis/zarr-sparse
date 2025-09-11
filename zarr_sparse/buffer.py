@@ -12,6 +12,7 @@ from zarr.registry import register_ndbuffer
 from zarr_sparse.chunk_grid import ChunkGrid
 from zarr_sparse.combine import combine_nd
 from zarr_sparse.slices import slice_size
+from zarr_sparse.utils import as_decorator
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -44,7 +45,7 @@ def sparse_equal(a, b, equal_nan: bool) -> bool:
     return sparse.equal(a, other, equal_nan=equal_nan)
 
 
-@register_ndbuffer
+@as_decorator(register_ndbuffer)
 class SparseNDBuffer(NDBuffer):
     def __init__(self, chunk_grid: ChunkGrid) -> None:
         if chunk_grid is None:
