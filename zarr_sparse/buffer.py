@@ -96,7 +96,7 @@ class SparseNDBuffer(NDBuffer):
         raise NotImplementedError("can't convert to `numpy`")
 
     def as_ndarray_like(self):
-        return combine_nd(self._data)
+        return combine_nd(self._data.data)
 
     def __getitem__(self, key: Any) -> Self:
         return self.__class__(self._data[key])
