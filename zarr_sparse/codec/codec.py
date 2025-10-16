@@ -9,11 +9,12 @@ from zarr.buffer.cpu import numpy_buffer_prototype
 from zarr.codecs import BytesCodec, ZstdCodec
 from zarr.core.array_spec import ArrayConfig, ArraySpec
 from zarr.core.buffer import Buffer, NDBuffer
+from zarr.core.buffer.cpu import Buffer as CPUBuffer
 from zarr.core.common import JSON, parse_named_configuration
 from zarr.core.dtype.npy.int import Int64
 from zarr.registry import get_pipeline_class, register_codec
 
-from zarr_sparse.buffer import sparse_buffer_prototype
+from zarr_sparse.buffer import SparseNDBuffer, sparse_buffer_prototype
 from zarr_sparse.codec import metadata
 from zarr_sparse.combine import first_value
 from zarr_sparse.comparison import compare_fill_value
@@ -104,6 +105,9 @@ async def decode_metadata_table(table_data: Buffer) -> dict[str, Any]:
 
 
 class SparseArrayCodec(ArrayBytesCodec):
+    codec_input = SparseNDBuffer
+    codec_output = CPUBuffer
+
     def __init__(self):
         self.array_codecs = (BytesCodec(), ZstdCodec())
         self.table_codecs = (BytesCodec(),)
