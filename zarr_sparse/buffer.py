@@ -10,7 +10,7 @@ from zarr.core.buffer.cpu import Buffer
 from zarr.registry import register_ndbuffer
 
 from zarr_sparse.chunk_grid import ChunkGrid
-from zarr_sparse.combine import combine_nd
+from zarr_sparse.combine import combine_nd, first_value
 from zarr_sparse.slices import slice_size
 from zarr_sparse.utils import as_decorator
 
@@ -21,6 +21,16 @@ if TYPE_CHECKING:
 
 def sparse_equal(a, b, equal_nan: bool) -> bool:
     equal_nan = equal_nan if a.dtype.kind not in ("U", "S", "T", "O", "V") else False
+    if isinstance(a, ChunkGrid):
+        if len(a.data) == 1:
+            a = next(iter(a.data.values()))
+        else:
+            raise RuntimeError("comparing multi-chunk grid")
+    if isinstance(b, ChunkGrid):
+        if len(b.data) == 1:
+            b = next(iter(b.data.values()))
+        else:
+            raise RuntimeError("comparing multi-chunk grid")
 
     if b.ndim == 0:
         if not np.array_equal(
@@ -104,7 +114,9 @@ class SparseNDBuffer(NDBuffer):
 
     def __setitem__(self, key: Any, value: Any) -> None:
         if isinstance(value, NDBuffer):
-            value = value._data
+            if len(value._data.data) != 1:
+                raise RuntimeError("setting a non-one-sized buffer is not allowed")
+            value = first_value(value._data.data)
 
         slice_sizes = tuple(
             slice_size(slice_, size) for slice_, size in zip(key, self._data.shape)

@@ -6,13 +6,18 @@ Unlike [binsparse-python](https://github.com/ivirshup/binsparse-python), the dif
 
 This does make reading specific parts (e.g. the coordinates) in a single request a bit harder, but having a single logical array map to a on-disk zarr array does have its advantages.
 
+Useful links:
+
+- zarr-python PR: https://github.com/zarr-developers/zarr-python/pull/3529
+- sparse indexing adapter: https://github.com/keewis/sparse-indexing-adapter
+
 ## Installation
 
 `zarr-sparse` currently requires a special version of zarr. To install it, use:
 
 ```sh
 pip install \
-    "zarr @ git+https://github.com/keewis/zarr-python.git@zarr-sparse-patch" \
+    "zarr @ git+https://github.com/keewis/zarr-python.git@array-registry" \
     "zarr-sparse @ git+https://github.com/keewis/zarr-sparse.git@main"
 ```
 
